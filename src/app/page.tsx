@@ -14,7 +14,7 @@ export default function Home() {
 
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [showAbout, setShowAbout] = useState<boolean>(true);
-  const [epubName, setEpubName] = useState<string>("");
+  const [epubName, setEpubName] = useState<string>("/Users/crdjm/Desktop/mobydick.epub");
   const [user, setUser] = useState<string>("");
   const [appVersion, setAppVersion] = useState<string>("");
   const [accessList, setAccessList] = useState<any>(null);

@@ -15,7 +15,7 @@ export default function ImgageList(props: Props) {
 
     useEffect(() => {
 
-        invoke<string>('greet', { name: 'Next.js' })
+        invoke<string>('expand', { name: epubName })
             .then(result => setGreeting(result))
             .catch(console.error)
     }, [])

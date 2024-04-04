@@ -83,6 +83,8 @@
     },
     "windows": [
       {
+        "x": 10,
+        "y": 10,
         "fullscreen": false,
         "height": 600,
         "resizable": true,
