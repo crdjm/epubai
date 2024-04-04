@@ -32,6 +32,14 @@
         "removeFile": true,
         "renameFile": true,
         "exists": true
+      },
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": [
+          "https://generativelanguage.googleapis.com/*",
+          "https://boulderwall.com/captionit/*"
+        ]
       }
     },
     "bundle": {
@@ -49,7 +57,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.tauri.epubit",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
