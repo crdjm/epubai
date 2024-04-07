@@ -77,10 +77,12 @@ checksum = "0952808a6c2afd1aa8947271f3a60f1a6763c7b912d210184c5149b5cf147247"
 name = "app"
 version = "0.1.0"
 dependencies = [
+ "epub",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "walkdir",
  "zip",
  "zip-extensions",
 ]
@@ -704,6 +706,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7268b386296a025e474d5140678f75d6de9493ae55a5d709eeb9dd08149945e1"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "epub"
+version = "1.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83c5ac32621967f51e8b82def1a8a86bf4f4e4ab21b6e22f3486d42121fa6581"
+dependencies = [
+ "anyhow",
+ "percent-encoding",
+ "regex",
+ "xml-rs",
+ "zip",
 ]
 
 [[package]]
@@ -4279,6 +4294,12 @@ dependencies = [
  "linux-raw-sys",
  "rustix",
 ]
+
+[[package]]
+name = "xml-rs"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "791978798f0597cfc70478424c2b4fdc2b7a8024aaff78497ef00f24ef674193"
 
 [[package]]
 name = "zip"
