@@ -21,7 +21,8 @@ tauri = { version = "1.6.1", features = [ "http-all", "fs-all", "dialog-all"] }
 zip = "0.6"
 zip-extensions = "0.6"
 walkdir = "2.3.2"
-epub = "1.2.2"
+epub = "2.1.1"
+xml_dom = "0.2.6"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

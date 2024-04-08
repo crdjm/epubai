@@ -53,13 +53,15 @@ export default function ImgageList(props: Props) {
     }
 
 
-    async function get_metadata() {
+    async function get_epub_details() {
         const base = path.basename(epubName);
         try {
-            let res: any = await invoke<string>('get_metadata', { path: epubPath, name: base, fullpath: path.join(epubPath, base) });
+            //  name: base, 
+            let res: any = await invoke<string>('get_epub_data', { path: epubPath, fullpath: path.join(epubPath, base) });
+            const [metadata, spine, resources] = res;  // Probably a better way of doing this when I understand rust types more
 
-            // setMessage(JSON.stringify(res, null, 2) + "\n");
-            setMessage(res.title);
+            setMessage(JSON.stringify(resources, null, 2) + "\n");
+            // setMessage(res.title);
         } catch (err) { alert(err) }
 
     }
@@ -72,7 +74,7 @@ export default function ImgageList(props: Props) {
             <h3>{message}</h3>
             <Button onClick={save_epub}>Save epub</Button>
 
-            <Button onClick={get_metadata}>Get Metadata</Button>
+            <Button onClick={get_epub_details}>Get Metadata</Button>
         </div>
 
     </div >
