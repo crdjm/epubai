@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-// import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
+
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
@@ -30,9 +40,10 @@ export default function ImgageList(props: Props) {
     const [spine, setSpine] = useState<any | null>(null);
     const [resources, setResources] = useState<any | null>(null);
 
+    // const [imageDisplay, setImageDisplay] = useState<any[]>([]);
     const [imageList, setImageList] = useState<any[]>([]);
 
-    const [imgTest, setImg] = useState<String | null>(null);
+    const [requireAlt, setRequireAlt] = useState(true);
 
     useEffect(() => {
 
@@ -79,9 +90,11 @@ export default function ImgageList(props: Props) {
             // setSpine(spine);
             // setResources(resources);
 
+
             let msg = "";
-            let first = true;
-            let imageList = [];
+            // let first = true;
+            let imageList: any = [];
+            // let imageDisplay = [];
 
             for (const page of spine) {
                 const fileName = path.join(epubPath, resources[page][0]);
@@ -103,33 +116,99 @@ export default function ImgageList(props: Props) {
                         // if (first) { setImg("t=" + images[img].getAttribute('src') + " fileName = " + fileName); first = false; }
                         // if (first) { setImg(convertFileSrc(t)); first = false; }
 
-                        imageList.push(<div><img src={convertFileSrc(t)} width={w} height={h} alt={alt}></img> alt={alt}</div>);
+                        imageList.push({ "image": t, "width": w, "height": h, "alt": alt, "needsAlt": alt == "", "index": img });
+                        // imageDisplay.push(
+                        //     <Card className="rounded-lg bg-white p-4 shadow-md transition duration-100 hover:bg-blue-50 hover:shadow-lg hover:shadow-grey-200">
+                        //         <CardHeader>
+                        //             <CardTitle>{path.basename(t)}</CardTitle>
+                        //             {/* <CardDescription>Card Description</CardDescription> */}
+                        //         </CardHeader>
+                        //         <CardContent>
+                        //             <img src={convertFileSrc(t)} width={w} height={h} alt={alt}></img>
+                        //         </CardContent>
+                        //         <CardFooter>
+                        //             <p>alt={alt}</p>
+                        //         </CardFooter>
+                        //     </Card>
+                        // );
+
+                        // <div><img src={convertFileSrc(t)} width={w} height={h} alt={alt}></img> alt={alt}</div>);
 
                     }
                 }
             }
 
+            // setImageDisplay(imageDisplay);
             setImageList(imageList);
             // setMessage(msg);
         } catch (err) { alert(err) }
 
     }
 
+    function show_all_images() {
+        setRequireAlt(!requireAlt);
+    }
+
+
+    // const updateColor = () => {
+    //     setCar(previousState => {
+    //       return { ...previousState, color: "blue" }
+    //     });
+    //   }
+
+    async function handleSubmit(e: any) {
+        try {
+            if (e.preventDefault) e.preventDefault();
+
+            var formData = new FormData(e.target);
+            const form_values = Object.fromEntries(formData);
+        } catch (err) { alert(err) }
+    }
+
+
     return <div className="flex flex-col space-y-5 sm:px-12 bg-slate-100 h-full min-h-screen">
         <div className="flex flex-col gap-2 w-full justify-center p-8">
             <Button onClick={get_epub_details}>Get Metadata</Button>
+            <Button onClick={show_all_images}>Show all Images</Button>
 
-            {/* {imgTest? <span>{imgTest} <img src={imgTest} /></span> : null} */}
-
-            <h1>{epubName}</h1>
+            {/* <h1>{epubName}</h1> */}
             {/* <h2>{epubPath}</h2> */}
             {/* <h2>{saveAs}</h2> */}
             <h3>{message}</h3>
             <h3>Title: {metadata?.title}</h3>
 
             {imageList && <div className="flex flex-col gap-2 justify-center">
-                {imageList}
+                {imageList.filter(name => name.needsAlt || requireAlt).map(filtered => (
+
+                    <Card key="{filtered.image}" className="rounded-lg bg-white p-4 shadow-md transition duration-100 hover:bg-blue-50 hover:shadow-lg hover:shadow-grey-200">
+                        <CardHeader>
+                            <CardTitle>{path.basename(filtered.image)}</CardTitle>
+                            {/* <CardDescription>Card Description</CardDescription> */}
+                        </CardHeader>
+                        <CardContent>
+                            <img src={convertFileSrc(filtered.image)} width={filtered.w} height={filtered.h} alt={filtered.alt}></img>
+                        </CardContent>
+                        <CardFooter>
+                            <p>alt={filtered.alt}</p>
+                            <form className="flex w-full justify-center align-center space-x-2" onSubmit={handleSubmit}>
+                                {/* <Label htmlFor="licenseKey" className="mt-3">Email</Label> */}
+                                {/* <Input type="text" id="alt" name="alt" placeholder="alt text" value={gemeniKey} onChange={e => changeKey(e.currentTarget.value)} /> */}
+                                <Input type="text" id="alt" name="alt" placeholder="alt text" value={filtered.alt} />
+                                <Button type="submit">Apply</Button>
+                            </form>
+                        </CardFooter>
+                    </Card>
+
+
+                    // <li key="{filteredName.image}">
+                    //     {JSON.stringify(filteredName, null, 2)}
+                    // </li>
+                ))}
             </div>}
+
+            {/* {imageDisplay && <div className="flex flex-col gap-2 justify-center">
+                {imageDisplay}
+            </div>} */}
 
             {/* <h3>SPINE: {JSON.stringify(spine, null, 2)}</h3>
             <h3>RESOURCES: {JSON.stringify(resources, null, 2)}</h3> */}
