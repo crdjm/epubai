@@ -30,6 +30,8 @@ export default function ImgageList(props: Props) {
     const [spine, setSpine] = useState<any | null>(null);
     const [resources, setResources] = useState<any | null>(null);
 
+    const [imageList, setImageList] = useState<any[]>([]);
+
     const [imgTest, setImg] = useState<String | null>(null);
 
     useEffect(() => {
@@ -73,12 +75,14 @@ export default function ImgageList(props: Props) {
             let fullpath = path.join(epubPath, base);
             let res: any = await invoke<string>('get_epub_data', { fullpath: fullpath });
             const [metadata, spine, resources] = res;  // Probably a better way of doing this when I understand rust types more
-            // setMetadata(metadata);
+            setMetadata(metadata);
             // setSpine(spine);
             // setResources(resources);
 
             let msg = "";
             let first = true;
+            let imageList = [];
+
             for (const page of spine) {
                 const fileName = path.join(epubPath, resources[page][0]);
                 const file = await readTextFile(fileName);
@@ -87,20 +91,26 @@ export default function ImgageList(props: Props) {
                 if (images.length > 0) {
                     msg += resources[page][0] + " - " + images.length;
                     for (let img = 0; img < images.length; img++) {
-                        msg += "[" + img + "] " + images[img].getAttribute('src');
+                        // msg += "[" + img + "] " + images[img].getAttribute('src');
                         let t: string = "";
                         if (images[img].getAttribute('src')) {
                             t = path.join(path.dirname(fileName), images[img].getAttribute('src') as string);
                         }
+                        const h = images[img].getAttribute('height') || "";
+                        const w = images[img].getAttribute('width') || "";
+                        const alt = images[img].getAttribute('alt') || "";
+
                         // if (first) { setImg("t=" + images[img].getAttribute('src') + " fileName = " + fileName); first = false; }
-                        if (first) { setImg(convertFileSrc(t)); first = false; }
+                        // if (first) { setImg(convertFileSrc(t)); first = false; }
+
+                        imageList.push(<div><img src={convertFileSrc(t)} width={w} height={h} alt={alt}></img> alt={alt}</div>);
 
                     }
                 }
             }
 
-
-            setMessage(msg);
+            setImageList(imageList);
+            // setMessage(msg);
         } catch (err) { alert(err) }
 
     }
@@ -109,15 +119,20 @@ export default function ImgageList(props: Props) {
         <div className="flex flex-col gap-2 w-full justify-center p-8">
             <Button onClick={get_epub_details}>Get Metadata</Button>
 
-            {imgTest ? <span>{imgTest} <img src={imgTest} /></span> : null}
+            {/* {imgTest? <span>{imgTest} <img src={imgTest} /></span> : null} */}
 
             <h1>{epubName}</h1>
-            <h2>{epubPath}</h2>
-            <h2>{saveAs}</h2>
+            {/* <h2>{epubPath}</h2> */}
+            {/* <h2>{saveAs}</h2> */}
             <h3>{message}</h3>
-            <h3>METADATA: {JSON.stringify(metadata, null, 2)}</h3>
-            <h3>SPINE: {JSON.stringify(spine, null, 2)}</h3>
-            <h3>RESOURCES: {JSON.stringify(resources, null, 2)}</h3>
+            <h3>Title: {metadata?.title}</h3>
+
+            {imageList && <div className="flex flex-col gap-2 justify-center">
+                {imageList}
+            </div>}
+
+            {/* <h3>SPINE: {JSON.stringify(spine, null, 2)}</h3>
+            <h3>RESOURCES: {JSON.stringify(resources, null, 2)}</h3> */}
             <Button onClick={save_epub}>Save epub</Button>
 
         </div>
