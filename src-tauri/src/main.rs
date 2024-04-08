@@ -9,7 +9,6 @@ use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use tauri::api::path::cache_dir;
-use xml_dom::level2::Document;
 use zip_extensions::*;
 
 use std::fs::File;
@@ -19,8 +18,6 @@ use zip::CompressionMethod;
 
 use epub::doc::EpubDoc;
 use walkdir::WalkDir;
-
-use xml_dom::parser::read_xml;
 
 fn main() {
     tauri::Builder::default()
@@ -44,7 +41,6 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn get_epub_data(
-    path: &str,
     fullpath: &str,
 ) -> (
     HashMap<String, Vec<String>>,
@@ -52,49 +48,14 @@ fn get_epub_data(
     HashMap<String, (PathBuf, String)>,
 ) {
     let doc = EpubDoc::new(fullpath).unwrap();
-    // let title = doc.mdata("title").unwrap();
-    // let mut book     = HashMap::new();
-
-    // book.insert("metadata".to_string(), doc.metadata);
-    // book.insert("spine".to_string(), doc.spine);
-
-    // doc.metadata
-    // println!("The name param is {}", doc.spine[0]);
-
-    // Loop over spine, and for each xhtml file, scan for images.
-    // Create list of images, where they are used and any current alt text
-
-    let dest = PathBuf::from(path);
-    for i in 0..doc.spine.len() {
-        let id = &doc.spine[i];
-        let locate = &doc.resources[id];
-        let f = locate.0.to_str().unwrap();
-
-        let mut file = dest.clone();
-        file.push(f);
-        let data = fs::read_to_string(file.to_str().unwrap()).unwrap();
-
-        let dom = read_xml(&data).unwrap();
-        let images = dom.get_elements_by_tag_name("img").iter();
-
-        println!("{} {} {} {}", i, id, f, data.len());
-    }
-
-    // for (key, value) in &doc.resources {
-    //     println!("{} / {}", key, value.0.to_str().unwrap());
-    //     // let mut file = dest.clone();
-    //     // file.push(value.0.to_str().unwrap());
-    //     // let data = fs::read_to_string(file.to_str().unwrap()).unwrap();
-    // }
 
     (doc.metadata, doc.spine, doc.resources)
-    // format!("epub path: {}, title = {}", fullpath, title)
 }
 
 #[tauri::command]
 fn expand(name: &str) -> String {
     println!("The name param is {}", name);
-    let a = false;
+    let a = true;
     let mut result = String::new();
 
     // I clearly don't understand RUST file handling, specifically the need to keep cloning things

@@ -31,7 +31,18 @@
         "removeDir": true,
         "removeFile": true,
         "renameFile": true,
-        "exists": true
+        "exists": true,
+        "scope": [
+          "$CACHE/**"
+        ]
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": [
+          "$APPCACHE/**",
+          "$DOCUMENT/**",
+          "$CACHE/**"
+        ]
       },
       "http": {
         "all": true,
