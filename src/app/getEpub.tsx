@@ -1,6 +1,11 @@
 import { open } from '@tauri-apps/api/dialog';
 import { listen } from '@tauri-apps/api/event'
-// import { useState } from 'react';
+
+import { invoke } from '@tauri-apps/api/tauri';
+import { useEffect, useState } from 'react';
+
+import { exists, readDir, BaseDirectory } from '@tauri-apps/api/fs';
+import path from 'path';
 
 interface Props {
     handleSetEpub: (epubName: string) => void;
@@ -8,7 +13,7 @@ interface Props {
 
 export default function GetEpub(props: Props) {
     const handleSetEpub = props.handleSetEpub;
-    // const [message, setMessage] = useState("");
+    const [loadedEpubs, setLoadedEpubs] = useState<[String] | null>(null);
 
     interface ListenEvent {
         id: number,
@@ -19,8 +24,6 @@ export default function GetEpub(props: Props) {
 
 
     listen('tauri://file-drop', event => {
-        // if (busy) return;
-
         const et = event as ListenEvent;
         const fileName = et.payload[0];
 
@@ -29,9 +32,41 @@ export default function GetEpub(props: Props) {
             // setMessage("Sorry, only epub files are allowed.");
             return;
         }
-
         handleSetEpub(fileName);
     })
+
+
+    useEffect(() => {
+
+        let epubs: [String] | null = null;
+        async function processEntries() {
+            try {
+                const entries = await readDir('epubai', { dir: BaseDirectory.Cache, recursive: true });
+                for (const entry of entries) {
+                    const anEpub = await exists(path.join(entry.path, 'mimetype'));
+                    if (anEpub)
+                        if (epubs)
+                            epubs.push(path.basename(entry.path));
+                        else
+                            epubs = [path.basename(entry.path)];
+                }
+                setLoadedEpubs(epubs);
+            } catch (error) {
+                alert(error);
+            }
+        }
+
+        processEntries();
+
+        // invoke<string>('list_epubs', {})
+        //     .then(result => setLoadedEpubs(result))
+        //     .catch(error => { alert(error) });
+
+
+
+    }, [])
+
+
 
     async function getFile() {
         const selected = await open({
@@ -54,6 +89,6 @@ export default function GetEpub(props: Props) {
         <p className="text-blue-500 p-4">Drop an epub anywhere on this window, or use the button below to select one</p>
         <button className="flex-none w-48 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 border border-blue-700 rounded disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => getFile()}>Select Epub...</button>
 
-
+        <p>LOADED = {JSON.stringify(loadedEpubs)}</p>
     </div >
 }

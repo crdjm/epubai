@@ -14,7 +14,8 @@ export default function Home() {
 
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [showAbout, setShowAbout] = useState<boolean>(true);
-  const [epubName, setEpubName] = useState<string>("/Users/crdjm/Desktop/CERTIFICATION139_std_dcusb_l1_core_default.epub"); // ("/Users/crdjm/Desktop/mobydick.epub");
+  // const [epubName, setEpubName] = useState<string>("/Users/crdjm/Desktop/CERTIFICATION139_std_dcusb_l1_core_default.epub"); // ("/Users/crdjm/Desktop/mobydick.epub");
+  const [epubName, setEpubName] = useState<string>(""); // ("/Users/crdjm/Desktop/mobydick.epub");
   const [user, setUser] = useState<string>("");
   const [appVersion, setAppVersion] = useState<string>("");
   const [accessList, setAccessList] = useState<any>(null);
@@ -27,7 +28,6 @@ export default function Home() {
 
       });
       setAccessList(response.data);
-      // setMessage(response.data.message);
 
       const tmpAppVersion = await getVersion();
       setAppVersion(tmpAppVersion);
@@ -63,12 +63,12 @@ export default function Home() {
   const handleSetAbout = (setAbout: boolean) => setShowAbout(setAbout);
 
   return (
-    <main className="w-screen h-screen">
+    <main className="w-screen min-h-screen bg-gradient-to-b from-gray-100 to-gray-300">
       {showSplash && <Splash />}
 
       {!showSplash && showAbout && <About handleSetUser={handleSetUser} currentUser={user} appVersion={appVersion} handleSetAbout={handleSetAbout} />}
 
-      {!showSplash && !showAbout && epubName.length === 0 && GetEpub({ handleSetEpub })}
+      {!showSplash && !showAbout && epubName.length === 0 && <GetEpub handleSetEpub={handleSetEpub} />}
 
       {!showSplash && !showAbout && epubName.length > 0 && <ImgageList epubName={epubName} />}
 

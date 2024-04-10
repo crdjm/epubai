@@ -25,7 +25,8 @@ fn main() {
             greet,
             expand,
             create_epub,
-            get_epub_data
+            get_epub_data,
+            // list_epubs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -35,6 +36,38 @@ fn main() {
 fn greet(name: &str) -> String {
     format!("Hello, {}!", name)
 }
+
+// Easier (for me) to do this in javascript
+// #[tauri::command]
+// fn list_epubs() -> Vec<String> {
+//     // let mut result = String::new();
+//     let mut vec = Vec::with_capacity(10);
+
+//     match cache_dir() {
+//         Some(path) => {
+//             let mut dest = PathBuf::from(path);
+//             dest.push("epubai");
+
+//             let paths = fs::read_dir(dest).unwrap();
+
+//             for path in paths {
+//                 vec.push(
+//                     path.unwrap()
+//                         .path()
+//                         .file_stem()
+//                         .unwrap()
+//                         .to_str()
+//                         .unwrap()
+//                         .to_string(),
+//                 );
+//                 // println!("Name: {}", path.unwrap().path().display())
+//             }
+
+//             vec
+//         }
+//         None => vec,
+//     }
+// }
 
 // path: &str,
 // name: &str,

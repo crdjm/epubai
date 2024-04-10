@@ -12,6 +12,8 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 
+
+
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
@@ -28,6 +30,11 @@ interface Props {
     epubName: string;
 }
 
+enum WhatToShow {
+    ShowAll,
+    ShowMissingAlt
+}
+
 export default function ImgageList(props: Props) {
     const epubName = props.epubName;
 
@@ -40,10 +47,10 @@ export default function ImgageList(props: Props) {
     const [spine, setSpine] = useState<any | null>(null);
     const [resources, setResources] = useState<any | null>(null);
 
-    // const [imageDisplay, setImageDisplay] = useState<any[]>([]);
     const [imageList, setImageList] = useState<any[]>([]);
 
-    const [requireAlt, setRequireAlt] = useState(true);
+    const [show, setShow] = useState(WhatToShow.ShowMissingAlt);
+
 
     useEffect(() => {
 
@@ -54,6 +61,7 @@ export default function ImgageList(props: Props) {
 
 
     }, [])
+
 
 
     async function save_epub() {
@@ -93,60 +101,49 @@ export default function ImgageList(props: Props) {
 
             let msg = "";
             // let first = true;
-            let imageList: any = [];
             // let imageDisplay = [];
+            let fullImageList = [];
+            let imgs: { [key: string]: boolean } = {};
 
+            let index = 0;
             for (const page of spine) {
                 const fileName = path.join(epubPath, resources[page][0]);
                 const file = await readTextFile(fileName);
                 const doc = new DOMParser().parseFromString(file, 'text/xml')
                 const images = doc.getElementsByTagName('img');
                 if (images.length > 0) {
+                    index++;
+
                     msg += resources[page][0] + " - " + images.length;
                     for (let img = 0; img < images.length; img++) {
                         // msg += "[" + img + "] " + images[img].getAttribute('src');
                         let t: string = "";
-                        if (images[img].getAttribute('src')) {
-                            t = path.join(path.dirname(fileName), images[img].getAttribute('src') as string);
+                        const src = images[img].getAttribute('src');
+                        if (src && !imgs[src]) {
+                            imgs[src] = true;
+                            t = path.join(path.dirname(fileName), src as string);
+                            const h = images[img].getAttribute('height') || "";
+                            const w = images[img].getAttribute('width') || "";
+                            const alt = images[img].getAttribute('alt') || "";
+
+                            fullImageList.push({ "image": t, "width": w, "height": h, "alt": alt, "needsAlt": (alt.length === 0 ? "true" : "false"), "index": index });
                         }
-                        const h = images[img].getAttribute('height') || "";
-                        const w = images[img].getAttribute('width') || "";
-                        const alt = images[img].getAttribute('alt') || "";
-
-                        // if (first) { setImg("t=" + images[img].getAttribute('src') + " fileName = " + fileName); first = false; }
-                        // if (first) { setImg(convertFileSrc(t)); first = false; }
-
-                        imageList.push({ "image": t, "width": w, "height": h, "alt": alt, "needsAlt": alt == "", "index": img });
-                        // imageDisplay.push(
-                        //     <Card className="rounded-lg bg-white p-4 shadow-md transition duration-100 hover:bg-blue-50 hover:shadow-lg hover:shadow-grey-200">
-                        //         <CardHeader>
-                        //             <CardTitle>{path.basename(t)}</CardTitle>
-                        //             {/* <CardDescription>Card Description</CardDescription> */}
-                        //         </CardHeader>
-                        //         <CardContent>
-                        //             <img src={convertFileSrc(t)} width={w} height={h} alt={alt}></img>
-                        //         </CardContent>
-                        //         <CardFooter>
-                        //             <p>alt={alt}</p>
-                        //         </CardFooter>
-                        //     </Card>
-                        // );
-
-                        // <div><img src={convertFileSrc(t)} width={w} height={h} alt={alt}></img> alt={alt}</div>);
 
                     }
                 }
             }
+            setImageList(fullImageList);
 
-            // setImageDisplay(imageDisplay);
-            setImageList(imageList);
-            // setMessage(msg);
+            // setMessage(JSON.stringify(fullImageList));
+
         } catch (err) { alert(err) }
 
     }
 
     function show_all_images() {
-        setRequireAlt(!requireAlt);
+        let newShow = (show === WhatToShow.ShowMissingAlt) ? WhatToShow.ShowAll : WhatToShow.ShowMissingAlt;
+        setShow(newShow);
+
     }
 
 
@@ -166,55 +163,50 @@ export default function ImgageList(props: Props) {
     }
 
 
-    return <div className="flex flex-col space-y-5 sm:px-12 bg-slate-100 h-full min-h-screen">
-        <div className="flex flex-col gap-2 w-full justify-center p-8">
-            <Button onClick={get_epub_details}>Get Metadata</Button>
-            <Button onClick={show_all_images}>Show all Images</Button>
 
-            {/* <h1>{epubName}</h1> */}
-            {/* <h2>{epubPath}</h2> */}
-            {/* <h2>{saveAs}</h2> */}
-            <h3>{message}</h3>
-            <h3>Title: {metadata?.title}</h3>
 
-            {imageList && <div className="flex flex-col gap-2 justify-center">
-                {imageList.filter(name => name.needsAlt || requireAlt).map(filtered => (
+    return <div className="flex flex-col  px-12 py-4 gap-2">
+        <span><Button onClick={get_epub_details}>Get Metadata</Button>
+            <Button onClick={show_all_images}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Show Missing Alt"}</Button>
+            <Button onClick={save_epub}>Save epub</Button>
+        </span>
+        <h3>Title: {metadata?.title}</h3>
 
-                    <Card key="{filtered.image}" className="rounded-lg bg-white p-4 shadow-md transition duration-100 hover:bg-blue-50 hover:shadow-lg hover:shadow-grey-200">
-                        <CardHeader>
-                            <CardTitle>{path.basename(filtered.image)}</CardTitle>
-                            {/* <CardDescription>Card Description</CardDescription> */}
-                        </CardHeader>
-                        <CardContent>
-                            <img src={convertFileSrc(filtered.image)} width={filtered.w} height={filtered.h} alt={filtered.alt}></img>
-                        </CardContent>
-                        <CardFooter>
-                            <p>alt={filtered.alt}</p>
-                            <form className="flex w-full justify-center align-center space-x-2" onSubmit={handleSubmit}>
+        <div className='p-2 grow flex flex-col gap-2'>
+
+            {imageList.filter((img: any) => (img.alt.length === 0 || show === WhatToShow.ShowAll)).map(filtered => (
+
+                <Card key={filtered.image} className="max-w-full rounded-lg bg-white p-1 shadow-md transition duration-100 hover:bg-blue-50 hover:shadow-lg hover:shadow-grey-200">
+                    <CardHeader>
+                        <CardTitle>{path.basename(filtered.image)}</CardTitle>
+                        {/* <CardDescription>{needsAlt} = {JSON.stringify(filtered.needsAlt)}</CardDescription> */}
+                    </CardHeader>
+                    <CardContent className="w-full flex flex-col items-center gap-2">
+                        <img src={convertFileSrc(filtered.image)} width={filtered.width} height={filtered.height} alt={filtered.alt}></img>
+                        <div>Current alt text:<br></br>{filtered.alt}</div>
+
+                    </CardContent>
+                    <CardFooter>
+
+                        <div className="flex flex-col w-full space-x-2">
+
+
+                            <form className="flex space-x-2" onSubmit={handleSubmit}>
+
                                 {/* <Label htmlFor="licenseKey" className="mt-3">Email</Label> */}
                                 {/* <Input type="text" id="alt" name="alt" placeholder="alt text" value={gemeniKey} onChange={e => changeKey(e.currentTarget.value)} /> */}
                                 <Input type="text" id="alt" name="alt" placeholder="alt text" value={filtered.alt} />
                                 <Button type="submit">Apply</Button>
                             </form>
-                        </CardFooter>
-                    </Card>
+                        </div>
+                    </CardFooter>
 
+                </Card>
 
-                    // <li key="{filteredName.image}">
-                    //     {JSON.stringify(filteredName, null, 2)}
-                    // </li>
-                ))}
-            </div>}
-
-            {/* {imageDisplay && <div className="flex flex-col gap-2 justify-center">
-                {imageDisplay}
-            </div>} */}
-
-            {/* <h3>SPINE: {JSON.stringify(spine, null, 2)}</h3>
-            <h3>RESOURCES: {JSON.stringify(resources, null, 2)}</h3> */}
-            <Button onClick={save_epub}>Save epub</Button>
+            ))}
 
         </div>
+
 
     </div >
 }
