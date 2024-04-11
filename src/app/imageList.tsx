@@ -28,6 +28,7 @@ import {
 
 interface Props {
     epubName: string;
+    epubPath: string;
 }
 
 enum WhatToShow {
@@ -37,15 +38,14 @@ enum WhatToShow {
 
 export default function ImgageList(props: Props) {
     const epubName = props.epubName;
+    const epubPath = props.epubPath;
 
-    // const [epub, setEpub] = useState<any>(null);
-    const [epubPath, setEpubPath] = useState('');
     const [message, setMessage] = useState('');
     const [saveAs, setSaveAs] = useState<String | null>(null);
 
     const [metadata, setMetadata] = useState<any | null>(null);
-    const [spine, setSpine] = useState<any | null>(null);
-    const [resources, setResources] = useState<any | null>(null);
+    // const [spine, setSpine] = useState<any | null>(null);
+    // const [resources, setResources] = useState<any | null>(null);
 
     const [imageList, setImageList] = useState<any[]>([]);
 
@@ -54,11 +54,7 @@ export default function ImgageList(props: Props) {
 
     useEffect(() => {
 
-        invoke<string>('expand', { name: epubName })
-            .then(result => setEpubPath(result))
-            .catch(console.error);
-
-
+        get_epub_details();
 
     }, [])
 
@@ -88,10 +84,14 @@ export default function ImgageList(props: Props) {
 
 
     async function get_epub_details() {
+        // alert("name: " + epubName + " path:" + epubPath);
+        // return;
+
         const base = path.basename(epubName);
         try {
             //  path: epubPath, , name: base, 
             let fullpath = path.join(epubPath, base);
+
             let res: any = await invoke<string>('get_epub_data', { fullpath: fullpath });
             const [metadata, spine, resources] = res;  // Probably a better way of doing this when I understand rust types more
             setMetadata(metadata);
@@ -166,7 +166,8 @@ export default function ImgageList(props: Props) {
 
 
     return <div className="flex flex-col  px-12 py-4 gap-2">
-        <span><Button onClick={get_epub_details}>Get Metadata</Button>
+        <span>
+            {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
             <Button onClick={show_all_images}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Show Missing Alt"}</Button>
             <Button onClick={save_epub}>Save epub</Button>
         </span>
@@ -189,8 +190,6 @@ export default function ImgageList(props: Props) {
                     <CardFooter>
 
                         <div className="flex flex-col w-full space-x-2">
-
-
                             <form className="flex space-x-2" onSubmit={handleSubmit}>
 
                                 {/* <Label htmlFor="licenseKey" className="mt-3">Email</Label> */}

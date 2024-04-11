@@ -87,7 +87,7 @@ fn get_epub_data(
 
 #[tauri::command]
 fn expand(name: &str) -> String {
-    println!("The name param is {}", name);
+    // println!("The name param is {}", name);
     let a = true;
     let mut result = String::new();
 
@@ -103,26 +103,41 @@ fn expand(name: &str) -> String {
             dest.push("epubai");
             dest.push(stem);
             let folder = dest.clone();
-            fs::create_dir_all(dest.clone()).expect("Failed to create");
+            // Use an existing folder, assumiong it is already expanded
+            if dest.exists() {
+                dest.push(base);
 
-            dest.push(base);
+                let target_dir: PathBuf = folder;
+                result = target_dir.to_str().unwrap().to_string();
+                println!(
+                    "Using existing epub folder: The result is {:?} basename {:?} file ",
+                    result, base
+                );
+            } else {
+                fs::create_dir_all(dest.clone()).expect("Failed to create");
 
-            let _result = fs::copy(name, dest.clone());
+                dest.push(base);
 
-            let archive_file: PathBuf = dest.clone();
-            let target_dir: PathBuf = folder;
-            result = target_dir.to_str().unwrap().to_string();
-            println!("The result is {:?} basename {:?} file ", result, base);
-            if a {
-                zip_extract(&archive_file, &target_dir).expect("Failed to extract");
+                let _result = fs::copy(name, dest.clone());
+
+                let archive_file: PathBuf = dest.clone();
+                let target_dir: PathBuf = folder;
+                result = target_dir.to_str().unwrap().to_string();
+                println!(
+                    "EXPANDING epub: The result is {:?} basename {:?} file ",
+                    result, base
+                );
+                if a {
+                    zip_extract(&archive_file, &target_dir).expect("Failed to extract");
+                }
             }
-            // println!("The result is {:?} basename {:?} file ", result, base);
         }
         None => {
             println!("The cache dir is None");
         }
     }
 
+    // Switch to returning the full path to the epub, and the folder with the expanded content
     result
 
     // To ZIP
