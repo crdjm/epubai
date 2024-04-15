@@ -4,16 +4,14 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft } from "lucide-react"
 import { ChevronRight } from "lucide-react"
 import { Input } from '@/components/ui/input';
-import { Label } from "@/components/ui/label"
+
 
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
@@ -26,12 +24,16 @@ import {
     BaseDirectory,
     readTextFile
 } from "@tauri-apps/api/fs";
+import { Label } from '@/components/ui/label';
 
 interface Props {
     epubName: string;
     epubPath: string;
     handleSetEpub: (epubName: string) => void;
 }
+
+// TODO add AI API call from test1 logic
+
 
 enum WhatToShow {
     ShowAll,
@@ -175,14 +177,14 @@ export default function ImgageList(props: Props) {
     //     });
     //   }
 
-    async function handleSubmit(e: any) {
-        try {
-            if (e.preventDefault) e.preventDefault();
+    // async function handleSubmit(e: any) {
+    //     try {
+    //         if (e.preventDefault) e.preventDefault();
 
-            var formData = new FormData(e.target);
-            const form_values = Object.fromEntries(formData);
-        } catch (err) { alert(err) }
-    }
+    //         var formData = new FormData(e.target);
+    //         const form_values = Object.fromEntries(formData);
+    //     } catch (err) { alert(err) }
+    // }
 
 
     function newEpub() {
@@ -215,9 +217,16 @@ export default function ImgageList(props: Props) {
     }
 
     function applyNewAlt() {
-        alert("Apply new alt: " + newAlt + " to image: " + currentImage?.image);
         if (currentImage) {
             currentImage.alt = newAlt;
+
+            const modifiedList = imageList.map((i, index) => {
+                if (index === currentIndex) {
+                    i.alt = newAlt;
+                }
+                return i
+            });
+            setImageList(pre => pre = modifiedList)
         }
     }
 
@@ -228,8 +237,8 @@ export default function ImgageList(props: Props) {
         alt: 'text-slate-700',
     }
 
-    return <div className="flex flex-col px-4 py-1 gap-1  bg-blue-50 min-h-full">
-        <div className="flex items-center px-4 py-4 gap-2">
+    return <div className="flex flex-col px-0 py-0 gap-0  bg-blue-50 min-h-full min-w-full">
+        <div className="flex w-full items-center px-2 py-2 gap-2 bg-slate-200">
             {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
             <Button onClick={save_epub}>Save epub</Button>
             <Button onClick={newEpub}>Load new epub</Button>
@@ -240,86 +249,97 @@ export default function ImgageList(props: Props) {
             <span>{currentIndex + 1} / {imageList.length}</span>
             <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
         </div>
+        <div className="grow flex flex-col px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
+            <h3 className="mt-0">Title: {metadata?.title}</h3>
 
-        <h3>Title: {metadata?.title}</h3>
+            <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-blue-100 border rounded-lg border-blue-100'>
+                {imageList.map((img, index) => (
+                    <div key={index} className={`${colorVariants[currentIndex === index ? 'blue' : 'red']}`}>
 
-        <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-slate-100 border rounded-lg border-blue-100'>
-            {imageList.map((img, index) => (
-                <div key={index} className={`${colorVariants[currentIndex === index ? 'blue' : 'red']}`}>
+                        <img
+                            key={index}
+                            onClick={() => setImage(index)}
+                            className="max-h-12 max-w-12 bg-slate-50 rounded border border-slate-200 transition duration-100 hover:border-blue-200 hover:border-2 hover:shadow-xl hover:shadow-blue-200"
+                            src={convertFileSrc(img.image)} alt={img.alt}>
+                        </img>
+                    </div>
 
-                    <img
-                        key={index}
-                        onClick={() => setImage(index)}
-                        className="max-h-12 max-w-12 bg-slate-50 rounded border border-slate-200 transition duration-100 hover:border-blue-200 hover:border-2 hover:shadow-xl hover:shadow-blue-200"
-                        src={convertFileSrc(img.image)} alt={img.alt}>
-                    </img>
+                ))}
+            </div>
+
+            {
+                currentImage &&
+                <h2 className='text-l text-blue-700'>{path.basename(currentImage.image)}</h2>
+            }
+
+            {
+                currentImage &&
+                <div className="flex-grow flex justify-center items-center  h-full relative">
+                    <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
                 </div>
+            }
 
-            ))}
+            {
+                currentImage &&
+                <div className="none w-full">
+                    <div className="flex items-center mb-1 gap-2 w-full">
+                        <div className="w-2/12">
+                            <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor="alt">
+                                Existing Alt Text
+                            </label>
+                        </div>
+                        <div className="w-9/12">
+                            <Input id="alt" readOnly={true}
+                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} />
+                        </div>
+                        <div className="w-1/12" />
+                    </div>
+
+                    <div className="flex items-center mb-1 w-full gap-2">
+                        <div className="w-2/12">
+
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='context'>
+                                            Context
+                                        </Label>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="italic">The context of the image to help create an accurate description</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                        <div className="w-9/12">
+                            <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} />
+
+                        </div>
+                        <Button className="w-1/12" type="submit">Generate</Button>
+
+                    </div>
+                    <div className="flex items-center mb-1 w-full gap-2">
+                        <div className="w-2/12">
+                            <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='newAlt'>
+                                New Alt Text
+                            </label>
+                        </div>
+                        <div className="w-9/12">
+                            <Input id="newAlt"
+                                onChange={(e) => setNewAlt(e.target.value)}
+                                className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                type="text"
+                                placeholder={currentImage.alt}
+                                value={newAlt} />
+
+                        </div>
+                        <Button className="w-1/12" onClick={applyNewAlt}>Apply</Button>
+
+                    </div>
+                </div>
+            }
+
         </div>
-
-        {
-            currentImage &&
-            <h2 className='text-l text-blue-700'>{path.basename(currentImage.image)}</h2>
-        }
-
-        {
-            currentImage &&
-            <div className="flex-grow flex justify-center items-center  h-full relative">
-                <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-lg" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
-            </div>
-        }
-
-        {
-            currentImage &&
-            <div className="none w-full">
-                <div className="flex items-center mb-1 gap-2 w-full">
-                    <div className="w-2/12">
-                        <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor="alt">
-                            Existing Alt Text
-                        </label>
-                    </div>
-                    <div className="w-9/12">
-                        <Input id="alt" readOnly={true}
-                            className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
-                            type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} />
-                    </div>
-                    <div className="w-1/12" />
-                </div>
-
-                <div className="flex items-center mb-1 w-full gap-2">
-                    <div className="w-2/12">
-                        <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='context'>
-                            Context
-                        </label>
-                    </div>
-                    <div className="w-9/12">
-                        <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} />
-
-                    </div>
-                    <Button className="w-1/12" type="submit">Generate</Button>
-
-                </div>
-                <div className="flex items-center mb-1 w-full gap-2">
-                    <div className="w-2/12">
-                        <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='newAlt'>
-                            New Alt Text
-                        </label>
-                    </div>
-                    <div className="w-9/12">
-                        <Input id="newAlt"
-                            onChange={(e) => setNewAlt(e.target.value)}
-                            className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
-                            type="text"
-                            value={newAlt} />
-
-                    </div>
-                    <Button className="w-1/12" onClick={applyNewAlt}>Apply</Button>
-
-                </div>
-            </div>
-        }
-
-
     </div >
 }
