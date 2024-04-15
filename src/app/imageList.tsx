@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { ChevronLeft } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { Input } from '@/components/ui/input';
+import { Label } from "@/components/ui/label"
 
 import {
     Card,
@@ -11,8 +14,6 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-
-
 
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
@@ -29,6 +30,7 @@ import {
 interface Props {
     epubName: string;
     epubPath: string;
+    handleSetEpub: (epubName: string) => void;
 }
 
 enum WhatToShow {
@@ -39,6 +41,7 @@ enum WhatToShow {
 export default function ImgageList(props: Props) {
     const epubName = props.epubName;
     const epubPath = props.epubPath;
+    const handleSetEpub = props.handleSetEpub;
 
     const [message, setMessage] = useState('');
     const [saveAs, setSaveAs] = useState<String | null>(null);
@@ -48,17 +51,19 @@ export default function ImgageList(props: Props) {
     // const [resources, setResources] = useState<any | null>(null);
 
     const [imageList, setImageList] = useState<any[]>([]);
+    const [fullImageList, setFullImageList] = useState<any[]>([]);
 
-    const [show, setShow] = useState(WhatToShow.ShowMissingAlt);
+    const [show, setShow] = useState(WhatToShow.ShowAll);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [currentImage, setCurrentImage] = useState<any | null>(null);
 
+    const [newAlt, setNewAlt] = useState<string>("");
 
     useEffect(() => {
 
         get_epub_details();
 
     }, [])
-
-
 
     async function save_epub() {
         const path = await save({
@@ -84,13 +89,18 @@ export default function ImgageList(props: Props) {
 
 
     async function get_epub_details() {
-        // alert("name: " + epubName + " path:" + epubPath);
-        // return;
-
         const base = path.basename(epubName);
         try {
             //  path: epubPath, , name: base, 
             let fullpath = path.join(epubPath, base);
+
+            // See if imageList.json exists in the epub folder, if so, load that instead of the epun contents
+            // It should contain the metadata, and the image list
+            // Otherwise, load from the epub
+            // Also save the original alt text contnet to allow for showing of the epub needs saving
+            // When saving the epub, reset this content
+
+            // Provide an option to show suspect alt text (notably, single word alt text)
 
             let res: any = await invoke<string>('get_epub_data', { fullpath: fullpath });
             const [metadata, spine, resources] = res;  // Probably a better way of doing this when I understand rust types more
@@ -132,21 +142,33 @@ export default function ImgageList(props: Props) {
                     }
                 }
             }
+            setFullImageList(fullImageList);
             setImageList(fullImageList);
+            if (fullImageList.length > 0) {
+                setCurrentImage(fullImageList[0]);
+            }
 
-            // setMessage(JSON.stringify(fullImageList));
 
         } catch (err) { alert(err) }
 
     }
 
-    function show_all_images() {
-        let newShow = (show === WhatToShow.ShowMissingAlt) ? WhatToShow.ShowAll : WhatToShow.ShowMissingAlt;
-        setShow(newShow);
 
+    function filter_images(show: WhatToShow) {
+        const newList = fullImageList.filter((img: any) => (img.alt.length === 0 || show === WhatToShow.ShowAll));
+        setShow(show);
+        setImageList(newList);
+        setCurrentIndex(0);
+        setCurrentImage(newList[0]);
     }
 
+    function toggleWhatToShow() {
 
+        let newShow = (show === WhatToShow.ShowMissingAlt) ? WhatToShow.ShowAll : WhatToShow.ShowMissingAlt;
+        filter_images(newShow);
+    }
+
+    // Hpw to update state as a variant of the current state
     // const updateColor = () => {
     //     setCar(previousState => {
     //       return { ...previousState, color: "blue" }
@@ -163,48 +185,140 @@ export default function ImgageList(props: Props) {
     }
 
 
+    function newEpub() {
+        handleSetEpub("");
+    }
 
+    function nextImage() {
+        if (currentImage) {
 
-    return <div className="flex flex-col  px-12 py-4 gap-2">
-        <span>
+            if (currentIndex < imageList.length - 1) {
+                setImage(currentIndex + 1);
+            }
+        }
+    }
+
+    function previousImage() {
+        if (currentImage) {
+
+            if (currentIndex > 0) {
+                setImage(currentIndex - 1);
+            }
+        }
+    }
+
+    function setImage(index: number) {
+        setCurrentImage(imageList[index]);
+        setCurrentIndex(index);
+        setNewAlt("");
+
+    }
+
+    function applyNewAlt() {
+        alert("Apply new alt: " + newAlt + " to image: " + currentImage?.image);
+        if (currentImage) {
+            currentImage.alt = newAlt;
+        }
+    }
+
+    const colorVariants = {
+        blue: 'border rounded border-blue-300 p-1 bg-blue-100',
+        red: 'bg-slate-50',
+        empty: 'text-red-400 italic',
+        alt: 'text-slate-700',
+    }
+
+    return <div className="flex flex-col px-4 py-1 gap-1  bg-blue-50 min-h-full">
+        <div className="flex items-center px-4 py-4 gap-2">
             {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
-            <Button onClick={show_all_images}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Show Missing Alt"}</Button>
             <Button onClick={save_epub}>Save epub</Button>
-        </span>
+            <Button onClick={newEpub}>Load new epub</Button>
+            <span className="flex-grow"></span>
+            <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
+
+            <Button variant="outline" disabled={currentIndex === 0} size="icon" onClick={previousImage}><ChevronLeft className="h-4 w-4" /></Button>
+            <span>{currentIndex + 1} / {imageList.length}</span>
+            <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+
         <h3>Title: {metadata?.title}</h3>
 
-        <div className='p-2 grow flex flex-col gap-2'>
+        <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-slate-100 border rounded-lg border-blue-100'>
+            {imageList.map((img, index) => (
+                <div key={index} className={`${colorVariants[currentIndex === index ? 'blue' : 'red']}`}>
 
-            {imageList.filter((img: any) => (img.alt.length === 0 || show === WhatToShow.ShowAll)).map(filtered => (
-
-                <Card key={filtered.image} className="max-w-full rounded-lg bg-white p-1 shadow-md transition duration-100 hover:bg-blue-50 hover:shadow-lg hover:shadow-grey-200">
-                    <CardHeader>
-                        <CardTitle>{path.basename(filtered.image)}</CardTitle>
-                        {/* <CardDescription>{needsAlt} = {JSON.stringify(filtered.needsAlt)}</CardDescription> */}
-                    </CardHeader>
-                    <CardContent className="w-full flex flex-col items-center gap-2">
-                        <img src={convertFileSrc(filtered.image)} width={filtered.width} height={filtered.height} alt={filtered.alt}></img>
-                        <div>Current alt text:<br></br>{filtered.alt}</div>
-
-                    </CardContent>
-                    <CardFooter>
-
-                        <div className="flex flex-col w-full space-x-2">
-                            <form className="flex space-x-2" onSubmit={handleSubmit}>
-
-                                {/* <Label htmlFor="licenseKey" className="mt-3">Email</Label> */}
-                                {/* <Input type="text" id="alt" name="alt" placeholder="alt text" value={gemeniKey} onChange={e => changeKey(e.currentTarget.value)} /> */}
-                                <Input type="text" id="alt" name="alt" placeholder="alt text" value={filtered.alt} />
-                                <Button type="submit">Apply</Button>
-                            </form>
-                        </div>
-                    </CardFooter>
-
-                </Card>
+                    <img
+                        key={index}
+                        onClick={() => setImage(index)}
+                        className="max-h-12 max-w-12 bg-slate-50 rounded border border-slate-200 transition duration-100 hover:border-blue-200 hover:border-2 hover:shadow-xl hover:shadow-blue-200"
+                        src={convertFileSrc(img.image)} alt={img.alt}>
+                    </img>
+                </div>
 
             ))}
-
         </div>
+
+        {
+            currentImage &&
+            <h2 className='text-l text-blue-700'>{path.basename(currentImage.image)}</h2>
+        }
+
+        {
+            currentImage &&
+            <div className="flex-grow flex justify-center items-center  h-full relative">
+                <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-lg" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
+            </div>
+        }
+
+        {
+            currentImage &&
+            <div className="none w-full">
+                <div className="flex items-center mb-1 gap-2 w-full">
+                    <div className="w-2/12">
+                        <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor="alt">
+                            Existing Alt Text
+                        </label>
+                    </div>
+                    <div className="w-9/12">
+                        <Input id="alt" readOnly={true}
+                            className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                            type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} />
+                    </div>
+                    <div className="w-1/12" />
+                </div>
+
+                <div className="flex items-center mb-1 w-full gap-2">
+                    <div className="w-2/12">
+                        <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='context'>
+                            Context
+                        </label>
+                    </div>
+                    <div className="w-9/12">
+                        <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} />
+
+                    </div>
+                    <Button className="w-1/12" type="submit">Generate</Button>
+
+                </div>
+                <div className="flex items-center mb-1 w-full gap-2">
+                    <div className="w-2/12">
+                        <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='newAlt'>
+                            New Alt Text
+                        </label>
+                    </div>
+                    <div className="w-9/12">
+                        <Input id="newAlt"
+                            onChange={(e) => setNewAlt(e.target.value)}
+                            className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                            type="text"
+                            value={newAlt} />
+
+                    </div>
+                    <Button className="w-1/12" onClick={applyNewAlt}>Apply</Button>
+
+                </div>
+            </div>
+        }
 
 
     </div >

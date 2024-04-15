@@ -26,7 +26,7 @@ export default function GetEpub(props: Props) {
     }
 
     function verifyNewEpub(epubName: string) {
-        alert("CHECK: Has epub: " + epubName + " been loaded before?");
+        alert("CHECK: Has epub: " + epubName + " been loaded before? If so, cancel load");
 
         if (epubName.indexOf("epubai") > -1) {
             handleSetEpubPath(epubName.replace(".epub", ""));

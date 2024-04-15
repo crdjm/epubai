@@ -66,15 +66,17 @@ export default function Home() {
   const handleSetUser = (name: string) => { window.localStorage.setItem("myEmail", name); setUser(name); }
   const handleSetAbout = (setAbout: boolean) => setShowAbout(setAbout);
 
+  // Need a way to return to the get epub page -- set the epubName to "" ? What if changes needed? Maybe save changes as we go?
+
   return (
-    <main className="w-screen min-h-screen bg-gradient-to-b from-gray-100 to-gray-300">
+    <main className="w-screen h-screen bg-white bg-gradient-to-b from-gray-100 to-gray-300">
       {showSplash && <Splash />}
 
       {!showSplash && showAbout && <About handleSetUser={handleSetUser} currentUser={user} appVersion={appVersion} handleSetAbout={handleSetAbout} />}
 
       {!showSplash && !showAbout && epubName.length === 0 && <GetEpub handleSetEpub={handleSetEpub} handleSetEpubPath={handleSetEpubPath} />}
 
-      {!showSplash && !showAbout && epubName.length > 0 && <ImgageList epubName={epubName} epubPath={epubPath} />}
+      {!showSplash && !showAbout && epubName.length > 0 && <ImgageList epubName={epubName} handleSetEpub={handleSetEpub} epubPath={epubPath} />}
 
     </main>
   );
