@@ -5,7 +5,8 @@ import { ChevronLeft } from "lucide-react"
 import { ChevronRight } from "lucide-react"
 import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox"
-
+// import { Textarea } from "@/components/ui/textarea"
+import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
 
 import {
     Tooltip,
@@ -65,6 +66,7 @@ export default function ImgageList(props: Props) {
     const [currentImage, setCurrentImage] = useState<any | null>(null);
 
     const [newAlt, setNewAlt] = useState<string>("");
+    const [includeContext, setIncludeContext] = useState<boolean>(true);
 
     useEffect(() => {
 
@@ -157,14 +159,23 @@ export default function ImgageList(props: Props) {
 
                             } else {
                                 try {
-                                    const title = el.closest("section");
-                                    if (title) {
-                                        if (title.getAttribute('aria-label')) entry.context = title.getAttribute('aria-label');
+                                    const figure = el.closest("figure");
+                                    if (figure) {
+                                        if (figure.getAttribute('title')) entry.context = figure.getAttribute('title');
                                         else
-                                            if (title.getChildren().length > 0 && title.getChildren()[0].getTextContent()) entry.context = title.getChildren()[0].getTextContent();
+                                            if (figure.firstChild && figure.firstChild.textContent) entry.context = figure.firstChild.textContent;
+
+                                    }
+                                    if (!entry.context || entry.context.length === 0) {
+                                        const title = el.closest("section");
+                                        if (title) {
+                                            if (title.firstChild && title.firstChild.textContent) entry.context = title.firstChild.textContent;
+                                            else
+                                                if (title.getAttribute('aria-label')) entry.context = title.getAttribute('aria-label');
+                                        }
                                     }
                                 } catch (err) {
-                                    entry.context = "";
+                                    entry.context = err;
                                 }
                                 // const title = images[img].closest("section");
                             }
@@ -264,6 +275,13 @@ export default function ImgageList(props: Props) {
         }
     }
 
+
+    function generateAltText() {
+        if (currentImage) {
+            alert(currentImage.src + " [" + includeContext + "] " + currentImage.context);
+        }
+    }
+
     const colorVariants = {
         blue: 'border rounded border-blue-300 p-1 bg-blue-100',
         red: 'bg-slate-50',
@@ -323,9 +341,13 @@ export default function ImgageList(props: Props) {
                             </label>
                         </div>
                         <div className="w-9/12">
-                            <Input id="alt" readOnly={false}
+                            <AutosizeTextarea id="alt" readOnly={false}
+                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                value={currentImage.alt ? currentImage.alt : "[Empty]"} />
+
+                            {/* <Input id="alt" readOnly={false}
                                 className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
-                                type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} />
+                                type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} /> */}
                         </div>
                         <div className="w-1/12" />
                     </div>
@@ -338,7 +360,7 @@ export default function ImgageList(props: Props) {
                                     <TooltipTrigger asChild>
                                         <Label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='context'>
                                             Context
-                                            <Checkbox className="ml-4" checked={true} id="include" />
+                                            <Checkbox className="ml-4" onClick={() => setIncludeContext(!includeContext)} checked={includeContext} id="include" />
 
                                             {/* <label
                                                 htmlFor="include"
@@ -348,19 +370,21 @@ export default function ImgageList(props: Props) {
                                             </label> */}
                                         </Label>
                                     </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p className="italic">The context of the image to help create an accurate description</p>
+                                    <TooltipContent className="p-0 ml-4">
+                                        <p className="italic bg-green-50 p-2">The context of the image to help create an accurate description<br />Check to include when generating the alt text</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
 
                         </div>
                         <div className="w-9/12">
-                            <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} />
+
+                            <AutosizeTextarea id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" placeholder={currentImage.context} />
+                            {/* <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} /> */}
 
                         </div>
 
-                        <Button className="w-1/12" type="submit">Generate</Button>
+                        <Button className="w-1/12" onClick={generateAltText}>Generate</Button>
 
                     </div>
                     <div className="flex items-center mb-1 w-full gap-2">
@@ -370,12 +394,18 @@ export default function ImgageList(props: Props) {
                             </label>
                         </div>
                         <div className="w-9/12">
-                            <Input id="newAlt"
+                            <AutosizeTextarea id="newAlt"
+                                onChange={(e) => setNewAlt(e.target.value)}
+                                className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                placeholder={currentImage.alt}
+                                value={newAlt} />
+
+                            {/* <Input id="newAlt"
                                 onChange={(e) => setNewAlt(e.target.value)}
                                 className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
                                 type="text"
                                 placeholder={currentImage.alt}
-                                value={newAlt} />
+                                value={newAlt} /> */}
 
                         </div>
                         <Button className="w-1/12" onClick={applyNewAlt}>Apply</Button>

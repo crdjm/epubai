@@ -97,7 +97,7 @@
         "x": 10,
         "y": 10,
         "fullscreen": false,
-        "height": 600,
+        "height": 800,
         "resizable": true,
         "title": "epubAI",
         "width": 800
