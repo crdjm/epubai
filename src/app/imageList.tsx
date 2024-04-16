@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft } from "lucide-react"
 import { ChevronRight } from "lucide-react"
 import { Input } from '@/components/ui/input';
+import { Checkbox } from "@/components/ui/checkbox"
 
 
 import {
@@ -18,7 +19,11 @@ import { save } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
 import path from 'path';
 
-import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+// import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+const IDOMParser = require("advanced-html-parser");
+// const s = new XMLSerializer();
+// const str = s.serializeToString(doc);
+// alert(doc.documentElement.outerHTML);
 
 import {
     BaseDirectory,
@@ -90,6 +95,7 @@ export default function ImgageList(props: Props) {
     }
 
 
+
     async function get_epub_details() {
         const base = path.basename(epubName);
         try {
@@ -121,24 +127,52 @@ export default function ImgageList(props: Props) {
             for (const page of spine) {
                 const fileName = path.join(epubPath, resources[page][0]);
                 const file = await readTextFile(fileName);
-                const doc = new DOMParser().parseFromString(file, 'text/xml')
+                // const doc = new DOMParser().parseFromString(file, 'text/xml')
+                const doc = IDOMParser.parse(file, 'text/xml');
                 const images = doc.getElementsByTagName('img');
                 if (images.length > 0) {
                     index++;
 
                     msg += resources[page][0] + " - " + images.length;
                     for (let img = 0; img < images.length; img++) {
-                        // msg += "[" + img + "] " + images[img].getAttribute('src');
-                        let t: string = "";
-                        const src = images[img].getAttribute('src');
-                        if (src && !imgs[src]) {
-                            imgs[src] = true;
-                            t = path.join(path.dirname(fileName), src as string);
-                            const h = images[img].getAttribute('height') || "";
-                            const w = images[img].getAttribute('width') || "";
-                            const alt = images[img].getAttribute('alt') || "";
+                        const el = images.item(img);
+                        if (!el) continue;
+                        let entry: any = {};
+                        entry.t = "";
+                        // let t: string = "";
+                        // const src = images[img].getAttribute('src');
+                        // entry.src = images[img].getAttribute('src');
+                        entry.src = el.getAttribute('src');
+                        if (entry.src && !imgs[entry.src]) {
+                            imgs[entry.src] = true;
+                            entry.image = path.join(path.dirname(fileName), entry.src as string);
+                            entry.h = images[img].getAttribute('height') || "";
+                            entry.w = images[img].getAttribute('width') || "";
+                            entry.alt = images[img].getAttribute('alt') || "";
+                            entry.needsAlt = (entry.alt.length === 0 ? "true" : "false");
 
-                            fullImageList.push({ "image": t, "width": w, "height": h, "alt": alt, "needsAlt": (alt.length === 0 ? "true" : "false"), "index": index });
+                            const epubType = images[img].getAttribute('epub:type');
+                            if (epubType) {
+                                entry.context = "Cover Image";
+
+                            } else {
+                                try {
+                                    const title = el.closest("section");
+                                    if (title) {
+                                        if (title.getAttribute('aria-label')) entry.context = title.getAttribute('aria-label');
+                                        else
+                                            if (title.getChildren().length > 0 && title.getChildren()[0].getTextContent()) entry.context = title.getChildren()[0].getTextContent();
+                                    }
+                                } catch (err) {
+                                    entry.context = "";
+                                }
+                                // const title = images[img].closest("section");
+                            }
+
+                            entry.index = index;
+
+                            // fullImageList.push({ "image": t, "width": w, "height": h, "alt": alt, "needsAlt": (alt.length === 0 ? "true" : "false"), "index": index });
+                            fullImageList.push(entry);
                         }
 
                     }
@@ -151,7 +185,7 @@ export default function ImgageList(props: Props) {
             }
 
 
-        } catch (err) { alert(err) }
+        } catch (err) { alert("Error: " + err) }
 
     }
 
@@ -289,7 +323,7 @@ export default function ImgageList(props: Props) {
                             </label>
                         </div>
                         <div className="w-9/12">
-                            <Input id="alt" readOnly={true}
+                            <Input id="alt" readOnly={false}
                                 className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
                                 type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} />
                         </div>
@@ -304,6 +338,14 @@ export default function ImgageList(props: Props) {
                                     <TooltipTrigger asChild>
                                         <Label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='context'>
                                             Context
+                                            <Checkbox className="ml-4" checked={true} id="include" />
+
+                                            {/* <label
+                                                htmlFor="include"
+                                                className="text-xs leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                            >
+
+                                            </label> */}
                                         </Label>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -311,11 +353,13 @@ export default function ImgageList(props: Props) {
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
+
                         </div>
                         <div className="w-9/12">
                             <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} />
 
                         </div>
+
                         <Button className="w-1/12" type="submit">Generate</Button>
 
                     </div>

@@ -60,16 +60,21 @@ export default function GetEpub(props: Props) {
         let epubs: [string] | null = null;
         async function processEntries() {
             try {
-                const entries = await readDir('epubai', { dir: BaseDirectory.Cache, recursive: true });
+                const entries = await readDir('epubai', { dir: BaseDirectory.Cache, recursive: false });
+                // alert(BaseDirectory.Cache + " " + JSON.stringify(entries));
                 for (const entry of entries) {
-                    const anEpub = await exists(path.join(entry.path, 'mimetype'));
-                    if (anEpub)
-                        if (epubs)
-                            // epubs.push(path.basename(entry.path));
-                            epubs.push(entry.path + ".epub");
-                        else
-                            // epubs = [path.basename(entry.path)];
-                            epubs = [entry.path + ".epub"];
+                    if (entry.path.indexOf(".DS_Store") > -1) continue;
+                    try {
+                        const anEpub = await exists(path.join(entry.path, 'mimetype'));
+                        if (anEpub)
+                            if (epubs)
+                                // epubs.push(path.basename(entry.path));
+                                epubs.push(entry.path + ".epub");
+                            else
+                                // epubs = [path.basename(entry.path)];
+                                epubs = [entry.path + ".epub"];
+                    } catch (err) { // Ignore any errors here due to unforseen files
+                    }
                 }
                 setLoadedEpubs(epubs);
             } catch (error) {

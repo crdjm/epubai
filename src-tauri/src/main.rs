@@ -37,41 +37,6 @@ fn greet(name: &str) -> String {
     format!("Hello, {}!", name)
 }
 
-// Easier (for me) to do this in javascript
-// #[tauri::command]
-// fn list_epubs() -> Vec<String> {
-//     // let mut result = String::new();
-//     let mut vec = Vec::with_capacity(10);
-
-//     match cache_dir() {
-//         Some(path) => {
-//             let mut dest = PathBuf::from(path);
-//             dest.push("epubai");
-
-//             let paths = fs::read_dir(dest).unwrap();
-
-//             for path in paths {
-//                 vec.push(
-//                     path.unwrap()
-//                         .path()
-//                         .file_stem()
-//                         .unwrap()
-//                         .to_str()
-//                         .unwrap()
-//                         .to_string(),
-//                 );
-//                 // println!("Name: {}", path.unwrap().path().display())
-//             }
-
-//             vec
-//         }
-//         None => vec,
-//     }
-// }
-
-// path: &str,
-// name: &str,
-
 #[tauri::command]
 fn get_epub_data(
     fullpath: &str,
@@ -137,18 +102,7 @@ fn expand(name: &str) -> String {
         }
     }
 
-    // Switch to returning the full path to the epub, and the folder with the expanded content
     result
-
-    // To ZIP
-    // let archive_file: PathBuf = ...
-    // let source_dir: PathBuf = ...
-    // zip_create_from_directory(&archive_file, &source_dir)?;
-    // create_from_directory_with_options(&archive_file, &source_dir, &options)?;   Hopefully options allows control of compression order
-
-    // println!("The result is {:?}", result);
-    // println!("The cache dir is {}", cache_dir().expect('TEST').to_str());
-    // format!("Expand, {}!", name)
 }
 
 #[tauri::command]
