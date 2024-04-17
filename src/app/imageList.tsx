@@ -15,9 +15,15 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+
+import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
+
+
+
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
+import { readBinaryFile } from "@tauri-apps/api/fs";
 import path from 'path';
 
 // import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
@@ -38,7 +44,21 @@ interface Props {
     handleSetEpub: (epubName: string) => void;
 }
 
-// TODO add AI API call from test1 logic
+
+// Gemini API code
+
+function bufToGenerativePart(buf: string, mimeType: string) {
+    return {
+        inlineData: {
+            // data: Buffer.from(buf).toString("base64"),
+            data: buf,
+            mimeType,
+        },
+    };
+}
+
+
+
 
 
 enum WhatToShow {
@@ -66,7 +86,38 @@ export default function ImgageList(props: Props) {
     const [currentImage, setCurrentImage] = useState<any | null>(null);
 
     const [newAlt, setNewAlt] = useState<string>("");
+    const [newContext, setNewContext] = useState<string>("");
     const [includeContext, setIncludeContext] = useState<boolean>(true);
+
+    const [busy, setBusy] = useState<boolean>(false);
+
+    const gemini = "AIzaSyBrzPW38QsFY5hqBkocEhWHvJbH87WZSNU"; // process.env.GEMINI_KEY;
+
+    const safetySettings = [
+        {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+    ];
+
+    const genAI = new GoogleGenerativeAI(gemini);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings });
+
+
+
+
 
     useEffect(() => {
 
@@ -193,6 +244,7 @@ export default function ImgageList(props: Props) {
             setImageList(fullImageList);
             if (fullImageList.length > 0) {
                 setCurrentImage(fullImageList[0]);
+                setNewContext(fullImageList[0].context);
             }
 
 
@@ -207,6 +259,7 @@ export default function ImgageList(props: Props) {
         setImageList(newList);
         setCurrentIndex(0);
         setCurrentImage(newList[0]);
+        setNewContext(imageList[0].context);
     }
 
     function toggleWhatToShow() {
@@ -258,6 +311,7 @@ export default function ImgageList(props: Props) {
         setCurrentImage(imageList[index]);
         setCurrentIndex(index);
         setNewAlt("");
+        setNewContext(imageList[index].context);
 
     }
 
@@ -276,9 +330,48 @@ export default function ImgageList(props: Props) {
     }
 
 
-    function generateAltText() {
+    async function generateAltText() {
         if (currentImage) {
-            alert(currentImage.src + " [" + includeContext + "] " + currentImage.context);
+            try {
+
+                setBusy(true);
+
+                const result = await readBinaryFile(currentImage.image);
+                if (result.length > 5000000) {
+                    alert("This image is too large for image analysis, can it be reduced in size?");
+                    return;
+                }
+
+                // alert(result.length + " " + currentImage.src + " [" + includeContext + "] " + currentImage.context);
+
+                const imageBuffer = Buffer.from(result).toString("base64");
+
+                const imageParts = [bufToGenerativePart(imageBuffer, "image/jpeg")];
+
+                let ai_prompt =
+                    "Write an alt text for the image.";
+
+                if (includeContext) {
+                    const context = document.getElementById('context')?.textContent;
+                    ai_prompt += " Reference, for context: " + context;
+                }
+                alert(ai_prompt)
+                const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
+
+                const response = gemeniResult.response;
+                let text = response.text();
+
+                setNewAlt(text);
+
+                setBusy(false);
+
+                // alert(JSON.stringify(response));
+
+            } catch (err) {
+                alert(err);
+                setBusy(false);
+            }
+
         }
     }
 
@@ -301,8 +394,8 @@ export default function ImgageList(props: Props) {
             <span>{currentIndex + 1} / {imageList.length}</span>
             <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
         </div>
-        <div className="grow flex flex-col px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
-            <h3 className="mt-0">Title: {metadata?.title}</h3>
+        <div className="grow flex flex-col  px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
+            <h3 className="animate-text bg-gradient-to-r from-slate-800  to-slate-500 bg-clip-text text-transparent text-2xl font-black">{metadata?.title}</h3>
 
             <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-blue-100 border rounded-lg border-blue-100'>
                 {imageList.map((img, index) => (
@@ -318,6 +411,13 @@ export default function ImgageList(props: Props) {
 
                 ))}
             </div>
+
+            {imageList.length === 0 &&
+                <div className="flex-grow flex justify-center items-center  h-full relative">
+                    <p className="text-2xl font-black">No images found in this epub</p>
+                </div>
+            }
+
 
             {
                 currentImage &&
@@ -336,13 +436,13 @@ export default function ImgageList(props: Props) {
                 <div className="none w-full">
                     <div className="flex items-center mb-1 gap-2 w-full">
                         <div className="w-2/12">
-                            <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor="alt">
+                            <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
                                 Existing Alt Text
                             </label>
                         </div>
                         <div className="w-9/12">
                             <AutosizeTextarea id="alt" readOnly={false}
-                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
                                 value={currentImage.alt ? currentImage.alt : "[Empty]"} />
 
                             {/* <Input id="alt" readOnly={false}
@@ -358,7 +458,7 @@ export default function ImgageList(props: Props) {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='context'>
+                                        <Label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='context'>
                                             Context
                                             <Checkbox className="ml-4" onClick={() => setIncludeContext(!includeContext)} checked={includeContext} id="include" />
 
@@ -379,24 +479,28 @@ export default function ImgageList(props: Props) {
                         </div>
                         <div className="w-9/12">
 
-                            <AutosizeTextarea id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" placeholder={currentImage.context} />
+                            <AutosizeTextarea id="context"
+                                onChange={(e) => setNewContext(e.target.value)}
+                                className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                // placeholder={currentImage.context}
+                                value={newContext} />
                             {/* <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} /> */}
 
                         </div>
 
-                        <Button className="w-1/12" onClick={generateAltText}>Generate</Button>
+                        <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={generateAltText}>Generate</Button>
 
                     </div>
                     <div className="flex items-center mb-1 w-full gap-2">
                         <div className="w-2/12">
-                            <label className="block text-gray-500 font-bold md:text-right mb-1 md:mb-0 pr-4" htmlFor='newAlt'>
+                            <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='newAlt'>
                                 New Alt Text
                             </label>
                         </div>
                         <div className="w-9/12">
                             <AutosizeTextarea id="newAlt"
                                 onChange={(e) => setNewAlt(e.target.value)}
-                                className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
                                 placeholder={currentImage.alt}
                                 value={newAlt} />
 
@@ -408,7 +512,7 @@ export default function ImgageList(props: Props) {
                                 value={newAlt} /> */}
 
                         </div>
-                        <Button className="w-1/12" onClick={applyNewAlt}>Apply</Button>
+                        <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={applyNewAlt}>Apply</Button>
 
                     </div>
                 </div>
