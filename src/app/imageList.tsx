@@ -18,9 +18,6 @@ import {
 } from "@/components/ui/tooltip"
 
 
-import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
-
-
 
 
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
@@ -30,7 +27,6 @@ import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/ge
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
-import { readBinaryFile } from "@tauri-apps/api/fs";
 import { readBinaryFile } from "@tauri-apps/api/fs";
 import path from 'path';
 
@@ -53,18 +49,6 @@ interface Props {
     handleSetEpub: (epubName: string) => void;
 }
 
-
-// Gemini API code
-
-function bufToGenerativePart(buf: string, mimeType: string) {
-    return {
-        inlineData: {
-            // data: Buffer.from(buf).toString("base64"),
-            data: buf,
-            mimeType,
-        },
-    };
-}
 
 
 
