@@ -33,7 +33,8 @@
         "renameFile": true,
         "exists": true,
         "scope": [
-          "$CACHE/**"
+          "$CACHE/**",
+          "$CONFIG/**"
         ]
       },
       "protocol": {
@@ -49,7 +50,7 @@
         "request": true,
         "scope": [
           "https://generativelanguage.googleapis.com/*",
-          "https://boulderwall.com/captionit/*"
+          "https://boulderwall.com/tools/epubai/*"
         ]
       }
     },

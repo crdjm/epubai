@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+require("dotenv").config();
+
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from "lucide-react"
 import { ChevronRight } from "lucide-react"
@@ -20,9 +22,15 @@ import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/ge
 
 
 
+
+import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
+
+
+
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
+import { readBinaryFile } from "@tauri-apps/api/fs";
 import { readBinaryFile } from "@tauri-apps/api/fs";
 import path from 'path';
 
@@ -41,8 +49,24 @@ import { Label } from '@/components/ui/label';
 interface Props {
     epubName: string;
     epubPath: string;
+    getKey: () => string;
     handleSetEpub: (epubName: string) => void;
 }
+
+
+// Gemini API code
+
+function bufToGenerativePart(buf: string, mimeType: string) {
+    return {
+        inlineData: {
+            // data: Buffer.from(buf).toString("base64"),
+            data: buf,
+            mimeType,
+        },
+    };
+}
+
+
 
 
 // Gemini API code
@@ -69,6 +93,7 @@ enum WhatToShow {
 export default function ImgageList(props: Props) {
     const epubName = props.epubName;
     const epubPath = props.epubPath;
+    const getKey = props.getKey;
     const handleSetEpub = props.handleSetEpub;
 
     const [message, setMessage] = useState('');
@@ -87,11 +112,10 @@ export default function ImgageList(props: Props) {
 
     const [newAlt, setNewAlt] = useState<string>("");
     const [newContext, setNewContext] = useState<string>("");
+    const [newContext, setNewContext] = useState<string>("");
     const [includeContext, setIncludeContext] = useState<boolean>(true);
 
     const [busy, setBusy] = useState<boolean>(false);
-
-    const gemini = "AIzaSyBrzPW38QsFY5hqBkocEhWHvJbH87WZSNU"; // process.env.GEMINI_KEY;
 
     const safetySettings = [
         {
@@ -112,10 +136,11 @@ export default function ImgageList(props: Props) {
         }
     ];
 
-    const genAI = new GoogleGenerativeAI(gemini);
+    const key = getKey();
+    // alert(key);
+
+    const genAI = new GoogleGenerativeAI(key ? key : "UNDEFINED");
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings });
-
-
 
 
 
@@ -245,6 +270,7 @@ export default function ImgageList(props: Props) {
             if (fullImageList.length > 0) {
                 setCurrentImage(fullImageList[0]);
                 setNewContext(fullImageList[0].context);
+                setNewContext(fullImageList[0].context);
             }
 
 
@@ -259,6 +285,7 @@ export default function ImgageList(props: Props) {
         setImageList(newList);
         setCurrentIndex(0);
         setCurrentImage(newList[0]);
+        setNewContext(imageList[0].context);
         setNewContext(imageList[0].context);
     }
 
@@ -312,6 +339,7 @@ export default function ImgageList(props: Props) {
         setCurrentIndex(index);
         setNewAlt("");
         setNewContext(imageList[index].context);
+        setNewContext(imageList[index].context);
 
     }
 
@@ -331,193 +359,215 @@ export default function ImgageList(props: Props) {
 
 
     async function generateAltText() {
-        if (currentImage) {
-            try {
+        async function generateAltText() {
+            if (currentImage) {
+                try {
 
-                setBusy(true);
+                    setBusy(true);
 
-                const result = await readBinaryFile(currentImage.image);
-                if (result.length > 5000000) {
-                    alert("This image is too large for image analysis, can it be reduced in size?");
-                    return;
+                    const result = await readBinaryFile(currentImage.image);
+                    if (result.length > 5000000) {
+                        alert("This image is too large for image analysis, can it be reduced in size?");
+                        return;
+                    }
+
+                    // alert(result.length + " " + currentImage.src + " [" + includeContext + "] " + currentImage.context);
+
+                    const imageBuffer = Buffer.from(result).toString("base64");
+
+                    const imageParts = [bufToGenerativePart(imageBuffer, "image/jpeg")];
+
+                    let ai_prompt =
+                        "Write an alt text for the image.";
+
+                    if (includeContext) {
+                        const context = document.getElementById('context')?.textContent;
+                        ai_prompt += " Reference, for context: " + context;
+                    }
+                    // alert(ai_prompt)
+                    const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
+
+                    const response = gemeniResult.response;
+                    let text = response.text();
+
+                    setNewAlt(text);
+
+                    setBusy(false);
+
+                    // alert(JSON.stringify(response));
+
+                } catch (err) {
+                    alert(err);
+                    setBusy(false);
                 }
 
-                // alert(result.length + " " + currentImage.src + " [" + includeContext + "] " + currentImage.context);
-
-                const imageBuffer = Buffer.from(result).toString("base64");
-
-                const imageParts = [bufToGenerativePart(imageBuffer, "image/jpeg")];
-
-                let ai_prompt =
-                    "Write an alt text for the image.";
-
-                if (includeContext) {
-                    const context = document.getElementById('context')?.textContent;
-                    ai_prompt += " Reference, for context: " + context;
-                }
-                alert(ai_prompt)
-                const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
-
-                const response = gemeniResult.response;
-                let text = response.text();
-
-                setNewAlt(text);
-
-                setBusy(false);
-
-                // alert(JSON.stringify(response));
-
-            } catch (err) {
-                alert(err);
-                setBusy(false);
             }
-
         }
-    }
 
-    const colorVariants = {
-        blue: 'border rounded border-blue-300 p-1 bg-blue-100',
-        red: 'bg-slate-50',
-        empty: 'text-red-400 italic',
-        alt: 'text-slate-700',
-    }
+        const colorVariants = {
+            blue: 'border rounded border-blue-300 p-1 bg-blue-100',
+            red: 'bg-slate-50',
+            empty: 'text-red-400 italic',
+            alt: 'text-slate-700',
+        }
 
-    return <div className="flex flex-col px-0 py-0 gap-0  bg-blue-50 min-h-full min-w-full">
-        <div className="flex w-full items-center px-2 py-2 gap-2 bg-slate-200">
-            {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
-            <Button onClick={save_epub}>Save epub</Button>
-            <Button onClick={newEpub}>Load new epub</Button>
-            <span className="flex-grow"></span>
-            <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
+        return <div className="flex flex-col px-0 py-0 gap-0  bg-blue-50 min-h-full min-w-full">
+            <div className="flex w-full items-center px-2 py-2 gap-2 bg-slate-200">
+                {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
+                <Button onClick={save_epub}>Save epub</Button>
+                <Button onClick={newEpub}>Load new epub</Button>
+                <span className="flex-grow"></span>
+                <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
 
-            <Button variant="outline" disabled={currentIndex === 0} size="icon" onClick={previousImage}><ChevronLeft className="h-4 w-4" /></Button>
-            <span>{currentIndex + 1} / {imageList.length}</span>
-            <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
-        </div>
-        <div className="grow flex flex-col  px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
-            <h3 className="animate-text bg-gradient-to-r from-slate-800  to-slate-500 bg-clip-text text-transparent text-2xl font-black">{metadata?.title}</h3>
+                <Button variant="outline" disabled={currentIndex === 0} size="icon" onClick={previousImage}><ChevronLeft className="h-4 w-4" /></Button>
+                <span>{currentIndex + 1} / {imageList.length}</span>
+                <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+            <div className="grow flex flex-col  px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
+                <h3 className="animate-text bg-gradient-to-r from-slate-800  to-slate-500 bg-clip-text text-transparent text-2xl font-black">{metadata?.title}</h3>
+                <div className="grow flex flex-col  px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
+                    <h3 className="animate-text bg-gradient-to-r from-slate-800  to-slate-500 bg-clip-text text-transparent text-2xl font-black">{metadata?.title}</h3>
 
-            <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-blue-100 border rounded-lg border-blue-100'>
-                {imageList.map((img, index) => (
-                    <div key={index} className={`${colorVariants[currentIndex === index ? 'blue' : 'red']}`}>
+                    <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-blue-100 border rounded-lg border-blue-100'>
+                        {imageList.map((img, index) => (
+                            <div key={index} className={`${colorVariants[currentIndex === index ? 'blue' : 'red']}`}>
 
-                        <img
-                            key={index}
-                            onClick={() => setImage(index)}
-                            className="max-h-12 max-w-12 bg-slate-50 rounded border border-slate-200 transition duration-100 hover:border-blue-200 hover:border-2 hover:shadow-xl hover:shadow-blue-200"
-                            src={convertFileSrc(img.image)} alt={img.alt}>
-                        </img>
+                                <img
+                                    key={index}
+                                    onClick={() => setImage(index)}
+                                    className="max-h-12 max-w-12 bg-slate-50 rounded border border-slate-200 transition duration-100 hover:border-blue-200 hover:border-2 hover:shadow-xl hover:shadow-blue-200"
+                                    src={convertFileSrc(img.image)} alt={img.alt}>
+                                </img>
+                            </div>
+
+                        ))}
                     </div>
 
-                ))}
-            </div>
-
-            {imageList.length === 0 &&
-                <div className="flex-grow flex justify-center items-center  h-full relative">
-                    <p className="text-2xl font-black">No images found in this epub</p>
-                </div>
-            }
-
-
-            {
-                currentImage &&
-                <h2 className='text-l text-blue-700'>{path.basename(currentImage.image)}</h2>
-            }
-
-            {
-                currentImage &&
-                <div className="flex-grow flex justify-center items-center  h-full relative">
-                    <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
-                </div>
-            }
-
-            {
-                currentImage &&
-                <div className="none w-full">
-                    <div className="flex items-center mb-1 gap-2 w-full">
-                        <div className="w-2/12">
-                            <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
-                                Existing Alt Text
-                            </label>
+                    {imageList.length === 0 &&
+                        <div className="flex-grow flex justify-center items-center  h-full relative">
+                            <p className="text-2xl font-black">No images found in this epub</p>
                         </div>
-                        <div className="w-9/12">
-                            <AutosizeTextarea id="alt" readOnly={false}
-                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
-                                value={currentImage.alt ? currentImage.alt : "[Empty]"} />
+                    }
 
-                            {/* <Input id="alt" readOnly={false}
+
+                    {imageList.length === 0 &&
+                        <div className="flex-grow flex justify-center items-center  h-full relative">
+                            <p className="text-2xl font-black">No images found in this epub</p>
+                        </div>
+                    }
+
+
+                    {
+                        currentImage &&
+                        <h2 className='text-l text-blue-700'>{path.basename(currentImage.image)}</h2>
+                    }
+
+                    {
+                        currentImage &&
+                        <div className="flex-grow flex justify-center items-center  h-full relative">
+                            <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
+                        </div>
+                    }
+
+                    {
+                        currentImage &&
+                        <div className="none w-full">
+                            <div className="flex items-center mb-1 gap-2 w-full">
+                                <div className="w-2/12">
+                                    <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
+                                        <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
+                                            Existing Alt Text
+                                        </label>
+                                </div>
+                                <div className="w-9/12">
+                                    <AutosizeTextarea id="alt" readOnly={false}
+                                        className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                        className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                        value={currentImage.alt ? currentImage.alt : "[Empty]"} />
+
+                                    {/* <Input id="alt" readOnly={false}
                                 className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
                                 type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} /> */}
-                        </div>
-                        <div className="w-1/12" />
-                    </div>
+                                </div>
+                                <div className="w-1/12" />
+                            </div>
 
-                    <div className="flex items-center mb-1 w-full gap-2">
-                        <div className="w-2/12">
+                            <div className="flex items-center mb-1 w-full gap-2">
+                                <div className="w-2/12">
 
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='context'>
-                                            Context
-                                            <Checkbox className="ml-4" onClick={() => setIncludeContext(!includeContext)} checked={includeContext} id="include" />
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='context'>
+                                                    <Label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='context'>
+                                                        Context
+                                                        <Checkbox className="ml-4" onClick={() => setIncludeContext(!includeContext)} checked={includeContext} id="include" />
 
-                                            {/* <label
+                                                        {/* <label
                                                 htmlFor="include"
                                                 className="text-xs leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                             >
 
                                             </label> */}
-                                        </Label>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="p-0 ml-4">
-                                        <p className="italic bg-green-50 p-2">The context of the image to help create an accurate description<br />Check to include when generating the alt text</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                                                    </Label>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="p-0 ml-4">
+                                                <p className="italic bg-green-50 p-2">The context of the image to help create an accurate description<br />Check to include when generating the alt text</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
 
-                        </div>
-                        <div className="w-9/12">
+                                </div>
+                                <div className="w-9/12">
 
-                            <AutosizeTextarea id="context"
-                                onChange={(e) => setNewContext(e.target.value)}
-                                className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
-                                // placeholder={currentImage.context}
-                                value={newContext} />
-                            {/* <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} /> */}
+                                    <AutosizeTextarea id="context"
+                                        onChange={(e) => setNewContext(e.target.value)}
+                                        className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                        // placeholder={currentImage.context}
+                                        value={newContext} />
+                                    <AutosizeTextarea id="context"
+                                        onChange={(e) => setNewContext(e.target.value)}
+                                        className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                        // placeholder={currentImage.context}
+                                        value={newContext} />
+                                    {/* <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} /> */}
 
-                        </div>
+                                </div>
 
-                        <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={generateAltText}>Generate</Button>
+                                <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={generateAltText}>Generate</Button>
+                                <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={generateAltText}>Generate</Button>
 
-                    </div>
-                    <div className="flex items-center mb-1 w-full gap-2">
-                        <div className="w-2/12">
-                            <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='newAlt'>
-                                New Alt Text
-                            </label>
-                        </div>
-                        <div className="w-9/12">
-                            <AutosizeTextarea id="newAlt"
-                                onChange={(e) => setNewAlt(e.target.value)}
-                                className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
-                                placeholder={currentImage.alt}
-                                value={newAlt} />
+                            </div>
+                            <div className="flex items-center mb-1 w-full gap-2">
+                                <div className="w-2/12">
+                                    <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='newAlt'>
+                                        <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='newAlt'>
+                                            New Alt Text
+                                        </label>
+                                </div>
+                                <div className="w-9/12">
+                                    <AutosizeTextarea id="newAlt"
+                                        onChange={(e) => setNewAlt(e.target.value)}
+                                        className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                        className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                        placeholder={currentImage.alt}
+                                        value={newAlt} />
 
-                            {/* <Input id="newAlt"
+                                    {/* <Input id="newAlt"
                                 onChange={(e) => setNewAlt(e.target.value)}
                                 className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
                                 type="text"
                                 placeholder={currentImage.alt}
                                 value={newAlt} /> */}
 
+                                </div>
+                                <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={applyNewAlt}>Apply</Button>
+                                <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={applyNewAlt}>Apply</Button>
+
+                            </div>
                         </div>
-                        <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={applyNewAlt}>Apply</Button>
+                    }
 
-                    </div>
                 </div>
-            }
-
-        </div>
-    </div >
+            </div >
 }

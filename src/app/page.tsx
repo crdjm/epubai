@@ -9,6 +9,7 @@ import ImgageList from "./imageList";
 
 import { fetch } from '@tauri-apps/api/http';
 import { getVersion } from '@tauri-apps/api/app';
+// import { access } from "fs";
 
 export default function Home() {
 
@@ -22,15 +23,17 @@ export default function Home() {
   const [user, setUser] = useState<string>("");
   const [appVersion, setAppVersion] = useState<string>("");
   const [accessList, setAccessList] = useState<any>(null);
+  const [key, setKey] = useState<string>("");
 
   async function getAccessList() {
     try {
-      const response: any = await fetch('https://boulderwall.com/captionit/access.json', {
+      const response: any = await fetch('https://boulderwall.com/tools/epubai/access.json', {
         method: 'GET',
         timeout: 30,
 
       });
       setAccessList(response.data);
+      // alert(JSON.stringify(response.data, null, 2))
 
       const tmpAppVersion = await getVersion();
       setAppVersion(tmpAppVersion);
@@ -44,21 +47,51 @@ export default function Home() {
 
       const showSplashTime = 2000;
 
+      getAccessList();
+
       setTimeout(function () {
 
-        getAccessList();
-
-        const key = window.localStorage.getItem("myEmail");
-        setUser(key || "");
-        if (key) {
+        const email = window.localStorage.getItem("myEmail");
+        setUser(email || "");
+        if (email) {
           setShowAbout(false);
         }
+
+
 
         setShowSplash(false);
       }, showSplashTime);
     } catch (err) { alert(err) }
 
   }, [])
+
+  function getKey() {
+
+    let tmpKey;
+    if (user && accessList && accessList.users) {
+      let ok = false;
+      for (let i = 0; i < accessList.users.length; i++) {
+        const check = accessList.users[i].email;
+        if (check === user) {
+          tmpKey = accessList.users[i].key;
+          window.localStorage.setItem("key", tmpKey);
+          setKey(tmpKey + "2k");
+          break
+        }
+      }
+      if (!ok) {
+        // Users doesn't have access, need to take care of this.
+      }
+
+    }
+    if (!key) {
+      tmpKey = window.localStorage.getItem("key");
+      setKey(tmpKey + "2k" || "");
+    }
+
+    return (key);
+
+  }
 
 
   const handleSetEpub = (name: string) => setEpubName(name);
@@ -76,7 +109,7 @@ export default function Home() {
 
       {!showSplash && !showAbout && epubName.length === 0 && <GetEpub handleSetEpub={handleSetEpub} handleSetEpubPath={handleSetEpubPath} />}
 
-      {!showSplash && !showAbout && epubName.length > 0 && <ImgageList epubName={epubName} handleSetEpub={handleSetEpub} epubPath={epubPath} />}
+      {!showSplash && !showAbout && epubName.length > 0 && <ImgageList epubName={epubName} handleSetEpub={handleSetEpub} epubPath={epubPath} getKey={getKey} />}
 
     </main>
   );
