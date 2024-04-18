@@ -5,7 +5,7 @@ import Splash from "./splash";
 import GetEpub from "./getEpub";
 import About from "./about";
 import ImgageList from "./imageList";
-
+import Cryptr from 'cryptr';
 
 import { fetch } from '@tauri-apps/api/http';
 import { getVersion } from '@tauri-apps/api/app';
@@ -24,6 +24,7 @@ export default function Home() {
   const [appVersion, setAppVersion] = useState<string>("");
   const [accessList, setAccessList] = useState<any>(null);
   const [key, setKey] = useState<string>("");
+  const [cryptr, setCryptr] = useState<any>(null);
 
   async function getAccessList() {
     try {
@@ -52,6 +53,7 @@ export default function Home() {
       setTimeout(function () {
 
         const email = window.localStorage.getItem("myEmail");
+        setCryptr(new Cryptr("epubai_" + email));
         setUser(email || "");
         if (email) {
           setShowAbout(false);
@@ -66,29 +68,31 @@ export default function Home() {
   }, [])
 
   function getKey() {
-
-    let tmpKey;
+    let key = null;
+    let tmpKey = null;
     if (user && accessList && accessList.users) {
-      let ok = false;
       for (let i = 0; i < accessList.users.length; i++) {
         const check = accessList.users[i].email;
+
         if (check === user) {
           tmpKey = accessList.users[i].key;
           window.localStorage.setItem("key", tmpKey);
-          setKey(tmpKey + "2k");
+          key = cryptr.decrypt(tmpKey);
+          setKey(key);
           break
         }
       }
-      if (!ok) {
-        // Users doesn't have access, need to take care of this.
-      }
+
 
     }
-    if (!key) {
+    if (!tmpKey) {
       tmpKey = window.localStorage.getItem("key");
-      setKey(tmpKey + "2k" || "");
+      if (tmpKey) {
+        key = cryptr.decrypt(tmpKey);
+        setKey(key);
+      }
     }
-
+    // alert("KEY: " + key);
     return (key);
 
   }

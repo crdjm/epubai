@@ -95,6 +95,9 @@ export default function ImgageList(props: Props) {
 
     const [busy, setBusy] = useState<boolean>(false);
 
+    const [key, setKey] = useState<string>("");
+    const [model, setModel] = useState<any>(null);
+
     const safetySettings = [
         {
             category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -114,15 +117,23 @@ export default function ImgageList(props: Props) {
         }
     ];
 
-    const key = getKey();
-    // alert(key);
 
-    const genAI = new GoogleGenerativeAI(key ? key : "UNDEFINED");
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings });
+
 
 
 
     useEffect(() => {
+
+        const key = getKey();
+        if (key) {
+            setKey(key);
+            const genAI = new GoogleGenerativeAI(key ? key : "UNDEFINED");
+            setModel(genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings }));
+            // alert(model);
+
+        } else {
+            // Need to display a message?
+        }
 
         get_epub_details();
 
