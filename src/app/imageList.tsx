@@ -93,7 +93,8 @@ export default function ImgageList(props: Props) {
     const [newContext, setNewContext] = useState<string>("");
     const [includeContext, setIncludeContext] = useState<boolean>(true);
 
-    const [busy, setBusy] = useState<boolean>(false);
+    const [busy, setBusy] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     const [key, setKey] = useState<string>("");
     const [model, setModel] = useState<any>(null);
@@ -124,10 +125,10 @@ export default function ImgageList(props: Props) {
 
     useEffect(() => {
 
-        const key = getKey();
-        if (key) {
-            setKey(key);
-            const genAI = new GoogleGenerativeAI(key ? key : "UNDEFINED");
+        const tmpKey = getKey();
+        if (tmpKey) {
+            setKey(tmpKey);
+            const genAI = new GoogleGenerativeAI(tmpKey ? tmpKey : "UNDEFINED");
             setModel(genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings }));
             // alert(model);
 
@@ -234,9 +235,16 @@ export default function ImgageList(props: Props) {
                                     if (!entry.context || entry.context.length === 0) {
                                         const title = el.closest("section");
                                         if (title) {
-                                            if (title.firstChild && title.firstChild.textContent) entry.context = title.firstChild.textContent;
-                                            else
+                                            const first = title.firstChild;
+                                            if (first && first.nodeName === "header") {
+                                                // entry.context = first.nodeName;
+                                                // if (title.firstChild && title.firstChild.textContent) 
+                                                entry.context = title.firstChild.textContent;
+                                            } else {
                                                 if (title.getAttribute('aria-label')) entry.context = title.getAttribute('aria-label');
+                                                else
+                                                    entry.context = "";
+                                            }
                                         }
                                     }
                                 } catch (err) {
@@ -260,9 +268,12 @@ export default function ImgageList(props: Props) {
                 setCurrentImage(fullImageList[0]);
                 setNewContext(fullImageList[0].context);
             }
+            setLoading(false);
 
-
-        } catch (err) { alert("Error: " + err) }
+        } catch (err) {
+            alert("Error: " + err);
+            setLoading(false);
+        }
 
     }
 
@@ -350,6 +361,7 @@ export default function ImgageList(props: Props) {
 
                 setBusy(true);
 
+
                 const result = await readBinaryFile(currentImage.image);
                 if (result.length > 5000000) {
                     alert("This image is too large for image analysis, can it be reduced in size?");
@@ -367,9 +379,9 @@ export default function ImgageList(props: Props) {
 
                 if (includeContext) {
                     const context = document.getElementById('context')?.textContent;
-                    ai_prompt += " Reference, for context: " + context;
+                    ai_prompt += " Include, for context: " + context;
                 }
-                // alert(ai_prompt)
+                alert(ai_prompt)
                 const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
 
                 const response = gemeniResult.response;
@@ -426,7 +438,13 @@ export default function ImgageList(props: Props) {
                 ))}
             </div>
 
-            {imageList.length === 0 &&
+            {loading &&
+                <div className="flex-grow flex justify-center items-center  h-full relative">
+                    <p className="text-2xl font-black">Loading epub</p>
+                </div>
+            }
+
+            {loading === false && imageList.length === 0 &&
                 <div className="flex-grow flex justify-center items-center  h-full relative">
                     <p className="text-2xl font-black">No images found in this epub</p>
                 </div>

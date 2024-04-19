@@ -36,65 +36,104 @@ export default function Home() {
       setAccessList(response.data);
       // alert(JSON.stringify(response.data, null, 2))
 
+      console.log("Have the access list for epubai");
+
+      const accessList = response.data;
+      const email = window.localStorage.getItem("myEmail");
+      setUser(email || "");
+
+      console.log("Found email: " + email);
+
+      let key = null;
+      let tmpKey = null;
+      if (email && accessList && accessList.users) {
+
+        console.log("Have email, etc");
+        const newCryptr = new Cryptr("epubai_" + email);
+        setCryptr(newCryptr);
+
+        for (let i = 0; i < accessList.users.length; i++) {
+          const check = accessList.users[i].email;
+
+          if (check === email) {
+            console.log("check = " + check + " email = " + email);
+            tmpKey = accessList.users[i].key;
+            window.localStorage.setItem("key", tmpKey);
+            key = newCryptr.decrypt(tmpKey);
+            setKey(key);
+            console.log("Found key: " + key);
+            break
+          }
+        }
+      }
+
+
       const tmpAppVersion = await getVersion();
       setAppVersion(tmpAppVersion);
 
-    } catch (err) { alert(err) }
+    } catch (err) { alert("1. " + err) }
   }
 
   useEffect(() => {
     try {
 
+      console.log("Starting epubai...");
 
-      const showSplashTime = 2000;
+      const showSplashTime = 1000;
 
       getAccessList();
 
       setTimeout(function () {
 
-        const email = window.localStorage.getItem("myEmail");
-        setCryptr(new Cryptr("epubai_" + email));
-        setUser(email || "");
-        if (email) {
-          setShowAbout(false);
+        if (!user) {
+          const email = window.localStorage.getItem("myEmail");
+          // setCryptr(new Cryptr("epubai_" + email));
+          setUser(email || "");
+          if (email) {
+            setShowAbout(false);
+          }
         }
 
 
 
         setShowSplash(false);
       }, showSplashTime);
-    } catch (err) { alert(err) }
+    } catch (err) { alert("2. " + err) }
 
   }, [])
 
   function getKey() {
-    let key = null;
-    let tmpKey = null;
-    if (user && accessList && accessList.users) {
-      for (let i = 0; i < accessList.users.length; i++) {
-        const check = accessList.users[i].email;
 
-        if (check === user) {
-          tmpKey = accessList.users[i].key;
-          window.localStorage.setItem("key", tmpKey);
-          key = cryptr.decrypt(tmpKey);
-          setKey(key);
-          break
-        }
-      }
+    // let key = null;
+    // let tmpKey = null;
+    // if (user && accessList && accessList.users) {
+    //   for (let i = 0; i < accessList.users.length; i++) {
+    //     const check = accessList.users[i].email;
+
+    //     if (check === user) {
+    //       tmpKey = accessList.users[i].key;
+    //       window.localStorage.setItem("key", tmpKey);
+    //       key = cryptr.decrypt(tmpKey);
+    //       setKey(key);
+    //       break
+    //     }
+    //   }
 
 
-    }
-    if (!tmpKey) {
-      tmpKey = window.localStorage.getItem("key");
+    // }
+
+    if (key) {
+      return (key);
+    } else {
+      let tmpKey = window.localStorage.getItem("key");
       if (tmpKey) {
-        key = cryptr.decrypt(tmpKey);
-        setKey(key);
+        const newKey = cryptr.decrypt(tmpKey);
+        setKey(newKey);
+        return (newKey);
+      } else {
+        return (null);
       }
     }
-    // alert("KEY: " + key);
-    return (key);
-
   }
 
 
