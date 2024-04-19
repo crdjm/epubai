@@ -217,6 +217,7 @@ export default function ImgageList(props: Props) {
                             entry.h = images[img].getAttribute('height') || "";
                             entry.w = images[img].getAttribute('width') || "";
                             entry.alt = images[img].getAttribute('alt') || "";
+                            entry.original_alt = entry.alt;
                             entry.needsAlt = (entry.alt.length === 0 ? "true" : "false");
 
                             const epubType = images[img].getAttribute('epub:type');
@@ -375,13 +376,13 @@ export default function ImgageList(props: Props) {
                 const imageParts = [bufToGenerativePart(imageBuffer, "image/jpeg")];
 
                 let ai_prompt =
-                    "Write an alt text for the image.";
+                    "write an alt text description.";
 
                 if (includeContext) {
                     const context = document.getElementById('context')?.textContent;
-                    ai_prompt += " Include, for context: " + context;
+                    ai_prompt = "Within the context of '" + context + "', " + ai_prompt;
                 }
-                alert(ai_prompt)
+                // alert(ai_prompt)
                 const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
 
                 const response = gemeniResult.response;
@@ -403,10 +404,16 @@ export default function ImgageList(props: Props) {
 
     const colorVariants = {
         blue: 'border rounded border-blue-300 p-1 bg-blue-100',
-        red: 'bg-slate-50',
+        red: 'bg-slate-50 p-1',
         empty: 'text-red-400 italic',
         alt: 'text-slate-700',
     }
+
+    const updatedAlt = {
+        original: '',
+        changed: 'bg-red-400'
+    }
+
 
     return <div className="flex flex-col px-0 py-0 gap-0  bg-blue-50 min-h-full min-w-full">
         <div className="flex w-full items-center px-2 py-2 gap-2 bg-slate-200">
@@ -425,7 +432,8 @@ export default function ImgageList(props: Props) {
 
             <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-blue-100 border rounded-lg border-blue-100'>
                 {imageList.map((img, index) => (
-                    <div key={index} className={`${colorVariants[currentIndex === index ? 'blue' : 'red']}`}>
+                    <div key={index}
+                        className={`${colorVariants[currentIndex === index ? 'blue' : 'red']} ${updatedAlt[img.original_alt === img.alt ? 'original' : 'changed']} `}>
 
                         <img
                             key={index}

@@ -26,6 +26,26 @@ export default function Home() {
   const [key, setKey] = useState<string>("");
   const [cryptr, setCryptr] = useState<any>(null);
 
+
+  function verifyUser(user: string) {
+    let ok = false;
+    if (accessList && accessList.users) {
+      for (let i = 0; i < accessList.users.length; i++) {
+        const check = accessList.users[i].email;
+        if (check === user) {
+          const newCryptr = new Cryptr("epubai_" + user);
+          setCryptr(newCryptr);
+          const tmpKey = accessList.users[i].key;
+          window.localStorage.setItem("key", tmpKey);
+          const newKey = newCryptr.decrypt(tmpKey);
+          setKey(newKey);
+          ok = true;
+        }
+      }
+    }
+    return (ok);
+  }
+
   async function getAccessList() {
     try {
       const response: any = await fetch('https://boulderwall.com/tools/epubai/access.json', {
@@ -104,24 +124,6 @@ export default function Home() {
 
   function getKey() {
 
-    // let key = null;
-    // let tmpKey = null;
-    // if (user && accessList && accessList.users) {
-    //   for (let i = 0; i < accessList.users.length; i++) {
-    //     const check = accessList.users[i].email;
-
-    //     if (check === user) {
-    //       tmpKey = accessList.users[i].key;
-    //       window.localStorage.setItem("key", tmpKey);
-    //       key = cryptr.decrypt(tmpKey);
-    //       setKey(key);
-    //       break
-    //     }
-    //   }
-
-
-    // }
-
     if (key) {
       return (key);
     } else {
@@ -139,7 +141,11 @@ export default function Home() {
 
   const handleSetEpub = (name: string) => setEpubName(name);
   const handleSetEpubPath = (name: string) => setEpubPath(name);
-  const handleSetUser = (name: string) => { window.localStorage.setItem("myEmail", name); setUser(name); }
+  const handleSetUser = (name: string) => {
+    window.localStorage.setItem("myEmail", name);
+    setUser(name);
+    const ok = verifyUser(name);
+  }
   const handleSetAbout = (setAbout: boolean) => setShowAbout(setAbout);
 
   // Need a way to return to the get epub page -- set the epubName to "" ? What if changes needed? Maybe save changes as we go?
