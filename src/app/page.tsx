@@ -11,6 +11,7 @@ import { fetch } from '@tauri-apps/api/http';
 import { getVersion } from '@tauri-apps/api/app';
 // import { access } from "fs";
 
+// Generate icon : npm run tauri icon
 export default function Home() {
 
   const [showSplash, setShowSplash] = useState<boolean>(true);

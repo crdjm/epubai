@@ -85,11 +85,17 @@ export default function ImgageList(props: Props) {
     const [imageList, setImageList] = useState<any[]>([]);
     const [fullImageList, setFullImageList] = useState<any[]>([]);
 
+    const saveNeeded =
+        !imageList.some(img => img.original_alt.localeCompare(img.alt) !== 0)
+
+
+
     const [show, setShow] = useState(WhatToShow.ShowAll);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [currentImage, setCurrentImage] = useState<any | null>(null);
 
     const [newAlt, setNewAlt] = useState<string>("");
+    const [currentAlt, setCurrentAlt] = useState<string>("");
     const [newContext, setNewContext] = useState<string>("");
     const [includeContext, setIncludeContext] = useState<boolean>(true);
 
@@ -268,6 +274,8 @@ export default function ImgageList(props: Props) {
             if (fullImageList.length > 0) {
                 setCurrentImage(fullImageList[0]);
                 setNewContext(fullImageList[0].context);
+                setCurrentAlt(fullImageList[0].alt);
+                setNewAlt(fullImageList[0].alt);
             }
             setLoading(false);
 
@@ -336,14 +344,17 @@ export default function ImgageList(props: Props) {
     function setImage(index: number) {
         setCurrentImage(imageList[index]);
         setCurrentIndex(index);
-        setNewAlt("");
+        setNewAlt(imageList[index].alt);
+        setCurrentAlt(imageList[index].alt);
         setNewContext(imageList[index].context);
 
     }
 
     function applyNewAlt() {
         if (currentImage) {
-            currentImage.alt = newAlt;
+            currentImage.alt = newAlt?.trim();
+            setCurrentAlt(newAlt);
+
 
             const modifiedList = imageList.map((i, index) => {
                 if (index === currentIndex) {
@@ -352,6 +363,28 @@ export default function ImgageList(props: Props) {
                 return i
             });
             setImageList(pre => pre = modifiedList)
+
+            // console.log("AFTER APPLYING NEW ALT");
+            // console.dir(modifiedList[currentIndex]);
+
+        }
+    }
+    function ResetAlt() {
+        if (currentImage) {
+            currentImage.alt = currentImage.original_alt?.trim();
+            setNewAlt(currentImage.original_alt);
+            setCurrentAlt(currentImage.original_alt);
+
+            const modifiedList = imageList.map((i, index) => {
+                if (index === currentIndex) {
+                    i.alt = i.original_alt;
+                }
+                return i
+            });
+            setImageList(pre => pre = modifiedList)
+
+            // console.log("AFTER RESET");
+            // console.dir(modifiedList[currentIndex]);
         }
     }
 
@@ -388,7 +421,7 @@ export default function ImgageList(props: Props) {
                 const response = gemeniResult.response;
                 let text = response.text();
 
-                setNewAlt(text);
+                setNewAlt(text.trim());
 
                 setBusy(false);
 
@@ -403,22 +436,23 @@ export default function ImgageList(props: Props) {
     }
 
     const colorVariants = {
-        blue: 'border rounded border-blue-300 p-1 bg-blue-100',
-        red: 'bg-slate-50 p-1',
+        blue: 'border rounded border-blue-300 p-1',
+        red: 'border rounded border-blue-100 p-1',
         empty: 'text-red-400 italic',
         alt: 'text-slate-700',
     }
 
     const updatedAlt = {
         original: '',
-        changed: 'bg-red-400'
+        changed: 'bg-red-200',
+        invisible: 'opacity-0'
     }
 
 
     return <div className="flex flex-col px-0 py-0 gap-0  bg-blue-50 min-h-full min-w-full">
         <div className="flex w-full items-center px-2 py-2 gap-2 bg-slate-200">
             {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
-            <Button onClick={save_epub}>Save epub</Button>
+            <Button disabled={saveNeeded} onClick={save_epub}>Save epub</Button>
             <Button onClick={newEpub}>Load new epub</Button>
             <span className="flex-grow"></span>
             <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
@@ -433,7 +467,7 @@ export default function ImgageList(props: Props) {
             <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-blue-100 border rounded-lg border-blue-100'>
                 {imageList.map((img, index) => (
                     <div key={index}
-                        className={`${colorVariants[currentIndex === index ? 'blue' : 'red']} ${updatedAlt[img.original_alt === img.alt ? 'original' : 'changed']} `}>
+                        className={`${colorVariants[currentIndex === index ? 'blue' : 'red']} ${updatedAlt[img.original_alt.localeCompare(img.alt) ? 'changed' : 'original']} `}>
 
                         <img
                             key={index}
@@ -477,19 +511,23 @@ export default function ImgageList(props: Props) {
                     <div className="flex items-center mb-1 gap-2 w-full">
                         <div className="w-2/12">
                             <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
-                                Existing Alt Text
+                                Current Alt Text
                             </label>
                         </div>
                         <div className="w-9/12">
                             <AutosizeTextarea id="alt" readOnly={false}
                                 className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
-                                value={currentImage.alt ? currentImage.alt : "[Empty]"} />
+                                value={currentAlt ? currentAlt : "[Empty]"} />
 
                             {/* <Input id="alt" readOnly={false}
                                 className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
                                 type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} /> */}
                         </div>
-                        <div className="w-1/12" />
+                        <Button disabled={busy}
+                            className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'original' : 'invisible']} disabled:opacity-0 w-1/12`}
+                            onClick={ResetAlt}>Reset</Button>
+
+                        {/* <div className="w-1/12" /> */}
                     </div>
 
                     <div className="flex items-center mb-1 w-full gap-2">
@@ -541,7 +579,7 @@ export default function ImgageList(props: Props) {
                             <AutosizeTextarea id="newAlt"
                                 onChange={(e) => setNewAlt(e.target.value)}
                                 className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
-                                placeholder={currentImage.alt}
+                                // placeholder={currentImage.alt}
                                 value={newAlt} />
 
                             {/* <Input id="newAlt"
@@ -552,7 +590,7 @@ export default function ImgageList(props: Props) {
                                 value={newAlt} /> */}
 
                         </div>
-                        <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={applyNewAlt}>Apply</Button>
+                        <Button disabled={busy} className={`${updatedAlt[currentAlt.localeCompare(newAlt) ? 'original' : 'invisible']} w-1/12 disabled:opacity-75 disabled:bg-slate-200`} onClick={applyNewAlt}>Apply</Button>
 
                     </div>
                 </div>
