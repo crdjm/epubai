@@ -13,8 +13,10 @@ use zip_extensions::*;
 
 use std::fs::File;
 use std::io::Write;
-use zip::write::{FileOptions, ZipWriter};
-use zip::CompressionMethod;
+use zip::write::SimpleFileOptions;
+use zip::write::ZipWriter;
+
+// use zip::CompressionMethod;
 
 use epub::doc::EpubDoc;
 use walkdir::WalkDir;
@@ -124,19 +126,27 @@ fn create_epub(name: &str, output: &str) -> String {
     let mut zip_writer = ZipWriter::new(epub_file);
 
     // Add mimetype file (not compressed)
-    let options = FileOptions::default();
-    let _ = options.compression_method(CompressionMethod::Stored);
+    // let options = FileOptions::default();
+    // let _ = options.compression_method(CompressionMethod::Stored);
+
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+
     zip_writer
         .start_file("mimetype", options)
         .expect("mimetype failed");
+    // zip_writer.set_options(FileOptions::default().compression_method(CompressionMethod::Stored));
+
     zip_writer
         .write_all(b"application/epub+zip")
         .expect("mimetype write failed");
 
     // Set compression method to deflate for other files
-    let options_deflate = FileOptions::default();
-    let _ = options_deflate.compression_method(CompressionMethod::Deflated);
-    // zip_writer.set_options(FileOptions::default().compression_method(CompressionMethod::Deflated));
+    // let options_deflate = FileOptions::default();
+
+    // let _ = options_deflate.compression_method(CompressionMethod::Deflated);
+    // let options_deflate = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    let options_deflate =
+        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     // Iterate over files in the folder
     let folder = Path::new(name);
@@ -171,10 +181,10 @@ fn create_epub(name: &str, output: &str) -> String {
             buffer.clear();
         } else if !name.as_os_str().is_empty() {
             // println!("adding dir {file_path:?} as {name:?} ...");
-            #[allow(deprecated)]
-            let _ = zip_writer
-                .add_directory_from_path(name, options_deflate)
-                .expect("Failed to add directory");
+            // #[allow(deprecated)]
+            // let _ = zip_writer
+            //     .add_directory_from_path(name, options_deflate)
+            //     .expect("Failed to add directory");
         }
     }
 

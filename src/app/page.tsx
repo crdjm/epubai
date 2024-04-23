@@ -69,7 +69,7 @@ export default function Home() {
       let tmpKey = null;
       if (email && accessList && accessList.users) {
 
-        console.log("Have email, etc");
+        // console.log("Have email, etc");
         const newCryptr = new Cryptr("epubai_" + email);
         setCryptr(newCryptr);
 
@@ -129,8 +129,16 @@ export default function Home() {
       return (key);
     } else {
       let tmpKey = window.localStorage.getItem("key");
+      let useCryptr = null;
+
+      if (cryptr) {
+        useCryptr = cryptr;
+      } else {
+        useCryptr = new Cryptr("epubai_" + user);
+        setCryptr(useCryptr);
+      }
       if (tmpKey) {
-        const newKey = cryptr.decrypt(tmpKey);
+        const newKey = useCryptr.decrypt(tmpKey);
         setKey(newKey);
         return (newKey);
       } else {

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from "lucide-react"
 import { ChevronRight } from "lucide-react"
-import { Input } from '@/components/ui/input';
+// import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox"
 // import { Textarea } from "@/components/ui/textarea"
 import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
@@ -37,6 +37,7 @@ import { exists, readBinaryFile, writeTextFile } from "@tauri-apps/api/fs";
 import path from 'path';
 
 // import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+// import IDOMParser from "advanced-html-parser";  // This causes type issues, which should be fixed
 const IDOMParser = require("advanced-html-parser");
 // const s = new XMLSerializer();
 // const str = s.serializeToString(doc);
@@ -89,6 +90,7 @@ export default function ImgageList(props: Props) {
     const [metadata, setMetadata] = useState<any | null>(null);
     const [spine, setSpine] = useState<any | null>(null);
     const [resources, setResources] = useState<any | null>(null);
+    const [originalEpub, setOriginalEpub] = useState<any | null>(null);
 
     const [imageList, setImageList] = useState<any[]>([]);
     const [fullImageList, setFullImageList] = useState<any[]>([]);
@@ -141,7 +143,7 @@ export default function ImgageList(props: Props) {
 
 
     useEffect(() => {
-
+        // alert("name= " + epubName + " path=" + epubPath);
         const tmpKey = getKey();
         if (tmpKey) {
             setKey(tmpKey);
@@ -165,19 +167,30 @@ export default function ImgageList(props: Props) {
                     extensions: ['epub'],
                 },
             ],
-            defaultPath: epubName.replace(".epub", "_output.epub"),
+            defaultPath: originalEpub.replace(".epub", "_output.epub"),
             title: "Save Epub",
         });
         if (path) {
+
             save_epub_details(); // get_epub_details() in reverse
             setSaveAs(path);
-
             // const output = (saveAs ? saveAs : epubName.replace(".epub", "_output.epub"));
-            // try {
-            //     let res = await invoke<string>('create_epub', { name: epubPath, output: output });
-            //     setMessage(res);
-            // } catch (err) { alert(err) }
+
+            // alert(epubPath + " " + output);
+
+            try {
+                let res = await invoke<string>('create_epub', { name: epubPath, output: path });
+                briefMessage("Epub saved");
+                // alert(res);
+            } catch (err) { alert(err) }
         }
+    }
+
+    function briefMessage(msg: string) {
+        setMessage(msg);
+        setTimeout(() => {
+            setMessage("");
+        }, 2000)
     }
 
     async function save_epub_details() {
@@ -185,21 +198,21 @@ export default function ImgageList(props: Props) {
 
         try {
             let fullpath = path.join(epubPath, base);
-            alert(epubPath);
+            // alert(epubPath);
             let imgs: { [key: string]: boolean } = {};
             let msg = "";
             let index = 0;
             for (const page of spine) {
                 const fileName = path.join(epubPath, resources[page][0]);
                 const file = await readTextFile(fileName);
-                const doc = IDOMParser.parse(file, 'text/xml');
-                const images = doc.getElementsByTagName('img');
+                const doc = IDOMParser.parse(file, { "mimeType": 'text/xml' });
+                const images = doc.documentElement.getElementsByTagName('img');
                 let changed = false;
                 if (images.length > 0) {
 
                     // msg += resources[page][0] + " - " + images.length;
                     for (let img = 0; img < images.length; img++) {
-                        const el = images.item(img);
+                        const el = images[img];
                         if (!el) continue;
 
                         const src = el.getAttribute('src');
@@ -208,7 +221,7 @@ export default function ImgageList(props: Props) {
                             const alt = el.getAttribute('alt');
                             if (alt.localeCompare(fullImageList[index].alt) !== 0) {
                                 // msg += "  [" + index + "]'" + fullImageList[index].alt + "' <== '" + alt + "'";
-                                el.setAttribue('alt', fullImageList[index].alt);
+                                el.setAttribute('alt', fullImageList[index].alt);
 
                                 fullImageList[index].original_alt = fullImageList[index].alt;
                                 changed = true;
@@ -232,6 +245,8 @@ export default function ImgageList(props: Props) {
     }
 
     async function get_epub_details() {
+        // alert(epubPath);
+
         const base = path.basename(epubName);
         try {
             //  path: epubPath, , name: base, 
@@ -254,11 +269,13 @@ export default function ImgageList(props: Props) {
             let fullImageList = [];
 
             // TODO remove existimg cache files if we re-load the samme epub in case it has changed
-            if (0 && saveExists && metadataExists) {
+            if (1 && saveExists && metadataExists) {
                 metadataIn = JSON.parse(await readTextFile(savedMetadata));
                 setMetadata(metadataIn.metadata);
                 setSpine(metadataIn.spine);
                 setResources(metadataIn.resources);
+                setOriginalEpub(metadataIn.originalEpub);
+                // setMessage(metadataIn.originalEpub);
                 fullImageList = JSON.parse(await readTextFile(savedImageList));
             } else {
 
@@ -282,7 +299,7 @@ export default function ImgageList(props: Props) {
                     const file = await readTextFile(fileName);
                     // const doc = new DOMParser().parseFromString(file, 'text/xml')
                     const doc = IDOMParser.parse(file, 'text/xml');
-                    const images = doc.getElementsByTagName('img');
+                    const images = doc.documentElement.getElementsByTagName('img');
                     if (images.length > 0) {
                         index++;
 
@@ -349,7 +366,10 @@ export default function ImgageList(props: Props) {
                     }
                 }
 
+                setOriginalEpub(epubName);
+
                 const saveMeta = {
+                    "originalEpub": epubName,
                     "metadata": metadata,
                     "spine": spine,
                     "resources": resources
@@ -495,7 +515,7 @@ export default function ImgageList(props: Props) {
             try {
 
                 setBusy(true);
-
+                briefMessage("Generating alt text...");
 
                 const result = await readBinaryFile(currentImage.image);
                 if (result.length > 5000000) {
@@ -555,13 +575,14 @@ export default function ImgageList(props: Props) {
             {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
             <Button disabled={saveNeeded} onClick={save_epub}>Save epub</Button>
             <Button onClick={newEpub}>Switch epub</Button>
-            <span className="flex-grow"></span>
+            <div className="flex-grow text-red-400">{message}</div>
             <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
 
             <Button variant="outline" disabled={currentIndex === 0} size="icon" onClick={previousImage}><ChevronLeft className="h-4 w-4" /></Button>
             <span>{currentIndex + 1} / {imageList.length}</span>
             <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
         </div>
+        {/* <div>{originalEpub}</div> */}
         <div className="grow flex flex-col  px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
             <h3 className="animate-text bg-gradient-to-r from-slate-800  to-slate-500 bg-clip-text text-transparent text-2xl font-black">{metadata?.title}</h3>
 

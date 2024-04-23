@@ -25,15 +25,21 @@ export default function GetEpub(props: Props) {
         payload: string[],
     }
 
-    function verifyNewEpub(epubName: string) {
-        alert("CHECK: Has epub: " + epubName + " been loaded before? If so, cancel load");
+    async function verifyNewEpub(epubName: string) {
+        // alert("CHECK: Has epub: " + epubName + " been loaded before? If so, cancel load");
 
         if (epubName.indexOf("epubai") > -1) {
             handleSetEpubPath(epubName.replace(".epub", ""));
         } else {
-            invoke<string>('expand', { name: epubName })
-                .then(result => handleSetEpubPath(result))
-                .catch(console.error);
+            try {
+
+                const result = await invoke<string>('expand', { name: epubName });
+                handleSetEpubPath(result);
+                // .then(result => handleSetEpubPath(result))
+                // .catch(console.error);
+            } catch (error) {
+                alert("Error: " + error);
+            }
         }
 
 
