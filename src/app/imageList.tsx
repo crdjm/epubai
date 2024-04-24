@@ -26,9 +26,6 @@ import 'tippy.js/dist/tippy.css';
 
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
 
-// TODO
-// 
-// Save epub should update the xhtml files and then create the epub. Only re-parse the files with updated images. May require saving opriginal filename in image list
 
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
@@ -574,9 +571,15 @@ export default function ImgageList(props: Props) {
         <div className="flex w-full items-center px-2 py-2 gap-2 bg-slate-200">
             {/* <Button onClick={get_epub_details}>Get Metadata</Button> */}
             <Button disabled={saveNeeded} onClick={save_epub}>Save epub</Button>
-            <Button onClick={newEpub}>Switch epub</Button>
+            <Tippy content={<span>Switch to another epub</span>}>
+                <Button onClick={newEpub}>Switch epub</Button>
+            </Tippy>
+
             <div className="flex-grow text-red-400">{message}</div>
-            <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
+            <Tippy content={<span>Only show images with missing, or single word alt text</span>}>
+                <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
+            </Tippy>
+
 
             <Button variant="outline" disabled={currentIndex === 0} size="icon" onClick={previousImage}><ChevronLeft className="h-4 w-4" /></Button>
             <span>{currentIndex + 1} / {imageList.length}</span>

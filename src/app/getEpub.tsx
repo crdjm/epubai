@@ -25,8 +25,26 @@ export default function GetEpub(props: Props) {
         payload: string[],
     }
 
-    async function verifyNewEpub(epubName: string) {
-        // alert("CHECK: Has epub: " + epubName + " been loaded before? If so, cancel load");
+    function verifyNewEpub(epubName: string): boolean {
+        let found = -1;
+        if (loadedEpubs) {
+            const newName = path.basename(epubName);
+            for (let i = 0; i < loadedEpubs.length; i++) {
+                const oldName = path.basename(loadedEpubs[i]);
+                if (newName.localeCompare(oldName) === 0) {
+                    found = i;
+                    break;
+                }
+            }
+            if (found > -1) {
+                // alert("Already have " + epubName + " loaded. Please remove it first to verify you want to load a new version.");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    async function loadNewEpub(epubName: string) {
 
         if (epubName.indexOf("epubai") > -1) {
             handleSetEpubPath(epubName.replace(".epub", ""));
@@ -47,21 +65,32 @@ export default function GetEpub(props: Props) {
     }
 
 
+    function listenForDrop() {
+        // console.log("LISTENER ADDED");
+        const unlisten = listen('tauri://file-drop', async (event) => {
+            const et = event as ListenEvent;
+            const fileName = et.payload[0];
+            // alert(fileName);
+            const extension = (fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length) || fileName).toLowerCase();
+            if (extension !== "epub") {
+                // setMessage("Sorry, only epub files are allowed.");
+                return;
+            }
 
-    listen('tauri://file-drop', event => {
-        const et = event as ListenEvent;
-        const fileName = et.payload[0];
+            // Unclear why verifyNewEpub doesn't work on the dropped file? Needs further investigation
+            // Suspect it is my understanding of the React useEffect hook
+            if (verifyNewEpub(fileName)) loadNewEpub(fileName);
 
-        const extension = (fileName.substring(fileName.lastIndexOf('.') + 1, fileName.length) || fileName).toLowerCase();
-        if (extension !== "epub") {
-            // setMessage("Sorry, only epub files are allowed.");
-            return;
-        }
-        verifyNewEpub(fileName);
-    })
+        })
+
+        return unlisten;
+    }
+
 
 
     useEffect(() => {
+
+        const unlisten = listenForDrop();
 
         let epubs: [string] | null = null;
         async function processEntries() {
@@ -90,7 +119,9 @@ export default function GetEpub(props: Props) {
 
         processEntries();
 
-
+        return () => {
+            unlisten.then(f => f());
+        }
 
     }, [])
 
@@ -105,11 +136,11 @@ export default function GetEpub(props: Props) {
             }]
         });
         if (Array.isArray(selected)) {
-            verifyNewEpub(selected[0]);  // Shouldn't happen as we only allow one epub, but leaving for possible expansion
+            if (verifyNewEpub(selected[0])) loadNewEpub(selected[0]);  // Shouldn't happen as we only allow one epub, but leaving for possible expansion
         } else if (selected === null) {
             // user cancelled the selection
         } else {
-            verifyNewEpub(selected);
+            if (verifyNewEpub(selected)) loadNewEpub(selected);
         }
     }
 
