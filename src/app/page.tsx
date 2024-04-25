@@ -89,10 +89,14 @@ export default function Home() {
       }
 
 
-      const tmpAppVersion = await getVersion();
-      setAppVersion(tmpAppVersion);
+
 
     } catch (err) { alert("1. " + err) }
+  }
+
+  async function getTheVersion() {
+    const tmpAppVersion = await getVersion();
+    setAppVersion(tmpAppVersion);
   }
 
   useEffect(() => {
@@ -100,7 +104,9 @@ export default function Home() {
 
       console.log("Starting epubai...");
 
-      const showSplashTime = 1000;
+      getTheVersion();
+
+      const showSplashTime = 5000;
 
       getAccessList();
 
@@ -161,7 +167,7 @@ export default function Home() {
 
   return (
     <main className="w-screen h-screen bg-white bg-gradient-to-b from-gray-100 to-gray-300">
-      {showSplash && <Splash />}
+      {showSplash && <Splash version={appVersion} />}
 
       {!showSplash && showAbout && <About handleSetUser={handleSetUser} currentUser={user} appVersion={appVersion} handleSetAbout={handleSetAbout} />}
 

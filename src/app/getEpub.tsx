@@ -7,6 +7,18 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { exists, readDir, BaseDirectory } from '@tauri-apps/api/fs';
 import path from 'path';
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 interface Props {
     handleSetEpub: (epubName: string) => void;
     handleSetEpubPath: (epubPath: string) => void;
@@ -17,6 +29,9 @@ export default function GetEpub(props: Props) {
     const handleSetEpubPath = props.handleSetEpubPath;
 
     const [loadedEpubs, setLoadedEpubs] = useState<[string] | null>(null);
+    const [isAlertDialogOpen, setAlertDialogOpen] = useState(false)
+    const [removeEpubName, setRemoveEpubName] = useState("");
+
 
     interface ListenEvent {
         id: number,
@@ -145,9 +160,18 @@ export default function GetEpub(props: Props) {
     }
 
     function removeEpub(epubName: string) {
-        alert("Not implemented yet: remove epub " + epubName);
+        setRemoveEpubName(epubName);
+        setAlertDialogOpen(true);
         // Needs to update loadedEpubs, and delete the disk content
     }
+    function handleRemoveEpub() {
+        const folder = removeEpubName.replace(".epub", "");
+        alert("Removing " + folder);
+        // Needs to update loadedEpubs, and delete the disk content
+    }
+
+
+
     function loadEpub(epubName: string) {
         handleSetEpub(epubName);
         // We have to have seen this before, so we can load it, but should proabbly verify it exists
@@ -172,5 +196,22 @@ export default function GetEpub(props: Props) {
             </div >
         </>
         }
+
+
+        <AlertDialog open={isAlertDialogOpen} onOpenChange={setAlertDialogOpen}>
+            {/* <AlertDialogTrigger>Switch Epub</AlertDialogTrigger> */}
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle></AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure that you want to unload <span className="italic text-red-400">{path.basename(removeEpubName)}</span>?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => { handleRemoveEpub(); }}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div >
 }

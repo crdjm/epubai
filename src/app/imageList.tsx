@@ -20,6 +20,16 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
 
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
@@ -342,8 +352,10 @@ export default function ImgageList(props: Props) {
                                                     entry.context = title.firstChild.textContent;
                                                 } else {
                                                     if (title.getAttribute('aria-label')) entry.context = title.getAttribute('aria-label');
-                                                    else
+                                                    else {
+                                                        // Look for figcaption as a child of figure, if present, use that
                                                         entry.context = "";
+                                                    }
                                                 }
                                             }
                                         }
@@ -506,6 +518,43 @@ export default function ImgageList(props: Props) {
         }
     }
 
+    async function verifyAlt() {
+        if (currentImage) {
+            try {
+
+                setBusy(true);
+                briefMessage("Verifying alt text...");
+
+                const result = await readBinaryFile(currentImage.image);
+                if (result.length > 5000000) {
+                    alert("This image is too large for image analysis, can it be reduced in size?");
+                    return;
+                }
+
+                // alert(result.length + " " + currentImage.src + " [" + includeContext + "] " + currentImage.context);
+
+                const imageBuffer = Buffer.from(result).toString("base64");
+
+                const imageParts = [bufToGenerativePart(imageBuffer, "image/jpeg")];
+
+                let ai_prompt =
+                    "For the image, does this text make good alt text? '" + currentImage.alt + "'";
+
+                // alert(ai_prompt)
+                const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
+
+                const response = gemeniResult.response;
+                let text = response.text();
+                alert(text);
+
+                setBusy(false);
+
+            } catch (err) {
+                alert("Error: " + err);
+                setBusy(false);
+            }
+        }
+    }
 
     async function generateAltText() {
         if (currentImage) {
@@ -527,7 +576,8 @@ export default function ImgageList(props: Props) {
                 const imageParts = [bufToGenerativePart(imageBuffer, "image/jpeg")];
 
                 let ai_prompt =
-                    "write an alt text description.";
+                    "write a short, descriptive alt text for this image.";
+
 
                 if (includeContext) {
                     const context = document.getElementById('context')?.textContent;
@@ -574,6 +624,16 @@ export default function ImgageList(props: Props) {
             <Tippy content={<span>Switch to another epub</span>}>
                 <Button onClick={newEpub}>Switch epub</Button>
             </Tippy>
+            <Select defaultValue='images'>
+                <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="images">Images</SelectItem>
+                    <SelectItem value="math">Math</SelectItem>
+                    <SelectItem value="tables">Tables</SelectItem>
+                </SelectContent>
+            </Select>
 
             <div className="flex-grow text-red-400">{message}</div>
             <Tippy content={<span>Only show images with missing, or single word alt text</span>}>
@@ -650,18 +710,37 @@ export default function ImgageList(props: Props) {
                                 className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
                                 type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} /> */}
                         </div>
-                        <div className='w-1/12'>
-                            <Tippy content={<span>Reset the alt text to what it is in the current epub</span>}>
+
+                        {currentAlt.localeCompare(currentImage.original_alt) !== 0 &&
+                            <div className='w-1/12'>
+
+                                <Tippy content={<span>Reset the alt text to what it is in the current epub</span>}>
 
 
-                                <Button disabled={busy}
-                                    className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'original' : 'invisible']} disabled:opacity-0`}
-                                    onClick={ResetAlt}>
+                                    <Button disabled={busy}
+                                        className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'original' : 'invisible']} max-w-full disabled:opacity-0`}
+                                        onClick={ResetAlt}>
 
-                                    Reset</Button>
-                            </Tippy>
-                        </div>
+                                        Reset</Button>
+                                </Tippy>
+                            </div>
+                        }
 
+                        {currentAlt.localeCompare(currentImage.original_alt) === 0 &&
+                            <div className='w-1/12'>
+
+                                <Tippy content={<span>Evaluate the current alt text to see if it is suitable for the image</span>}>
+
+
+                                    <Button disabled={busy}
+                                        className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'invisible' : 'original']} max-w-full disabled:opacity-0`}
+                                        onClick={verifyAlt}>
+
+                                        Verify</Button>
+                                </Tippy>
+
+                            </div>
+                        }
                         {/* <div className="w-1/12" /> */}
                     </div>
 
