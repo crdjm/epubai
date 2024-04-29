@@ -108,6 +108,7 @@ export default function ImgageList(props: Props) {
     const [fullMathList, setFullMathList] = useState<any[]>([]);
     const [currentMathIndex, setCurrentMathIndex] = useState(0);
     const [currentMath, setCurrentMath] = useState<any | null>(null);
+    const [hasFallbackImage, setHasFallbackImage] = useState(false);
 
 
 
@@ -156,6 +157,7 @@ export default function ImgageList(props: Props) {
 
 
     const savedImageList = epubPath + ".json";
+    const savedMathList = epubPath + "_math.json";
     const savedMetadata = epubPath + "_metadata.json";
 
 
@@ -258,6 +260,8 @@ export default function ImgageList(props: Props) {
 
             setImageList(pre => pre = fullImageList);
             await writeTextFile(savedImageList, JSON.stringify(fullImageList, null, 2));
+            setFullMathList(pre => pre = fullMathList);
+            await writeTextFile(savedMathList, JSON.stringify(fullMathList, null, 2));
 
         } catch (err) { alert(err) }
     }
@@ -280,6 +284,7 @@ export default function ImgageList(props: Props) {
 
 
             const saveExists = await exists(savedImageList);
+            const mathExists = await exists(savedMathList);
             const metadataExists = await exists(savedMetadata);
             // alert(savedImageList + " " + saveExists);
 
@@ -288,7 +293,7 @@ export default function ImgageList(props: Props) {
             let fullMathList = [];
 
             // TODO remove existimg cache files if we re-load the samme epub in case it has changed
-            if (0 && saveExists && metadataExists) {
+            if (0 && saveExists && metadataExists && mathExists) {
                 metadataIn = JSON.parse(await readTextFile(savedMetadata));
                 setMetadata(metadataIn.metadata);
                 setSpine(metadataIn.spine);
@@ -296,6 +301,7 @@ export default function ImgageList(props: Props) {
                 setOriginalEpub(metadataIn.originalEpub);
                 // setMessage(metadataIn.originalEpub);
                 fullImageList = JSON.parse(await readTextFile(savedImageList));
+                fullMathList = JSON.parse(await readTextFile(savedMathList));
             } else {
 
                 let res: any = await invoke<string>('get_epub_data', { fullpath: fullpath });
@@ -423,6 +429,7 @@ export default function ImgageList(props: Props) {
                 }
 
                 await writeTextFile(savedImageList, JSON.stringify(fullImageList, null, 2));
+                await writeTextFile(savedMathList, JSON.stringify(fullMathList, null, 2));
                 await writeTextFile(savedMetadata, JSON.stringify(saveMeta, null, 2));
             }
 
@@ -548,6 +555,8 @@ export default function ImgageList(props: Props) {
         const altImage: HTMLImageElement = document.querySelector('#mathmlAlt') as HTMLImageElement;
         altImage.src = "";
         altImage.width = 0;
+
+        setHasFallbackImage(false);
 
 
     }
@@ -697,6 +706,7 @@ export default function ImgageList(props: Props) {
                     altImage.width = canvas.width;
                     altImage.height = canvas.height;
                     altImage.src = dataURL;
+                    setHasFallbackImage(true);
                 });
 
 
@@ -968,12 +978,17 @@ export default function ImgageList(props: Props) {
             {component === "math" && fullMathList.length > 0 &&
                 <>
 
-                    <div className="flex-grow flex justify-center items-center  h-full relative m-2">
-                        <div className="text-5xl p-4 absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl">
+                    <div className="flex-grow flex flex-col justify-center items-center  h-full relative m-2">
+                        <div className="text-5xl p-4  max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl">
                             <div id="mathml" dangerouslySetInnerHTML={{ __html: fullMathList[currentMathIndex].mathml }} />
-                            <img className="mt-10 border border-slate-200 " id="mathmlAlt" />
 
                         </div>
+                        {/* {hasFallbackImage && */}
+                        <div className="mt-5 flex text-5xl p-4 just-center items-center max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl">
+                            <div className="text-sm">Fallback image</div><img className="ml-5 border" id="mathmlAlt" />
+
+                        </div>
+                        {/* } */}
                         {/* <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img> */}
                     </div>
 
