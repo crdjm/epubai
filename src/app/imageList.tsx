@@ -30,7 +30,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 
-
+import html2canvas from 'html2canvas';
 
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
@@ -56,6 +56,7 @@ import {
     readTextFile
 } from "@tauri-apps/api/fs";
 import { Label } from '@/components/ui/label';
+import { error } from 'console';
 
 interface Props {
     epubName: string;
@@ -544,6 +545,11 @@ export default function ImgageList(props: Props) {
         setNewAlt(fullMathList[index].alt);
         setCurrentAlt(fullMathList[index].alt);
 
+        const altImage: HTMLImageElement = document.querySelector('#mathmlAlt') as HTMLImageElement;
+        altImage.src = "";
+        altImage.width = 0;
+
+
     }
 
     async function applyNewAlt() {
@@ -678,6 +684,25 @@ export default function ImgageList(props: Props) {
 
             setBusy(true);
             briefMessage("Generating mathalt text...");
+
+            const canvas: HTMLImageElement = document.querySelector('#mathml') as HTMLImageElement;
+            const altImage: HTMLImageElement = document.querySelector('#mathmlAlt') as HTMLImageElement;
+            if (canvas) {
+                // Need to understand the scaling better?
+                html2canvas(canvas, { x: -1, y: 21, width: canvas.width, height: canvas.height, scale: 1 }).then(canvas => {
+                    // const image = canvas.toDataURL("image/jpeg");
+                    var dataURL = canvas.toDataURL();
+                    // const xxx = dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
+                    // alert(xxx);
+                    altImage.width = canvas.width;
+                    altImage.height = canvas.height;
+                    altImage.src = dataURL;
+                });
+
+
+
+            }
+            // return;
 
             let ai_prompt =
                 "Generate alt text for this mathml: " + currentMath.mathml;
@@ -945,12 +970,15 @@ export default function ImgageList(props: Props) {
 
                     <div className="flex-grow flex justify-center items-center  h-full relative m-2">
                         <div className="text-5xl p-4 absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl">
-                            <div dangerouslySetInnerHTML={{ __html: fullMathList[currentMathIndex].mathml }} />
+                            <div id="mathml" dangerouslySetInnerHTML={{ __html: fullMathList[currentMathIndex].mathml }} />
+                            <img className="mt-10 border border-slate-200 " id="mathmlAlt" />
+
                         </div>
                         {/* <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img> */}
                     </div>
 
                     <div className="none w-full">
+
                         <div className="flex items-center mb-1 gap-2 w-full">
                             <div className="w-2/12">
                                 <Tippy content={<span>Math alt text in the epub</span>}>
