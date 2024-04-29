@@ -9,6 +9,7 @@ import Cryptr from 'cryptr';
 
 import { fetch } from '@tauri-apps/api/http';
 import { getVersion } from '@tauri-apps/api/app';
+import { listen } from '@tauri-apps/api/event'
 // import { access } from "fs";
 
 // Generate icon : npm run tauri icon
@@ -100,6 +101,11 @@ export default function Home() {
   }
 
   useEffect(() => {
+    const unlisten = listen('about', event => {
+      setShowAbout(true);
+      // alert("Event received: " + JSON.stringify(event));
+    });
+
     try {
 
       // console.log("Starting epubai...");
@@ -109,6 +115,9 @@ export default function Home() {
       const showSplashTime = 2000;
 
       getAccessList();
+
+
+
 
       setTimeout(function () {
 
@@ -126,6 +135,10 @@ export default function Home() {
         setShowSplash(false);
       }, showSplashTime);
     } catch (err) { alert("2. " + err) }
+
+    return () => {
+      unlisten.then(f => f());
+    }
 
   }, [])
 

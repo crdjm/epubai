@@ -11,6 +11,8 @@ use std::path::PathBuf;
 use tauri::api::path::cache_dir;
 use zip_extensions::*;
 
+use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
+
 use std::fs::File;
 use std::io::Write;
 use zip::write::SimpleFileOptions;
@@ -22,7 +24,27 @@ use epub::doc::EpubDoc;
 use walkdir::WalkDir;
 
 fn main() {
+    let about = CustomMenuItem::new("about".to_string(), "About epubAI");
+    let submenu = Submenu::new(
+        "File",
+        Menu::new().add_item(about).add_native_item(MenuItem::Quit),
+    );
+    let menu = Menu::new()
+        .add_native_item(MenuItem::Copy)
+        .add_item(CustomMenuItem::new("hide", "Hide"))
+        .add_submenu(submenu);
+
     tauri::Builder::default()
+        .menu(menu)
+        .on_menu_event(|event| {
+            match event.menu_item_id() {
+                "about" => {
+                    /*emit event for frontend here*/
+                    event.window().emit("about", "CaptionIT").unwrap();
+                }
+                _ => {}
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             expand,
