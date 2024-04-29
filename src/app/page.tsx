@@ -57,13 +57,13 @@ export default function Home() {
       setAccessList(response.data);
       // alert(JSON.stringify(response.data, null, 2))
 
-      console.log("Have the access list for epubai");
+      // console.log("Have the access list for epubai");
 
       const accessList = response.data;
       const email = window.localStorage.getItem("myEmail");
       setUser(email || "");
 
-      console.log("Found email: " + email);
+      // console.log("Found email: " + email);
 
       let key = null;
       let tmpKey = null;
@@ -102,11 +102,11 @@ export default function Home() {
   useEffect(() => {
     try {
 
-      console.log("Starting epubai...");
+      // console.log("Starting epubai...");
 
       getTheVersion();
 
-      const showSplashTime = 5000;
+      const showSplashTime = 2000;
 
       getAccessList();
 
@@ -157,10 +157,15 @@ export default function Home() {
   const handleSetEpub = (name: string) => setEpubName(name);
   const handleSetEpubPath = (name: string) => setEpubPath(name);
   const handleSetUser = (name: string) => {
-    window.localStorage.setItem("myEmail", name);
-    setUser(name);
     const ok = verifyUser(name);
+    if (ok) {
+      window.localStorage.setItem("myEmail", name);
+      setUser(name);
+      setShowAbout(false);
+    }
+    return ok;
   }
+
   const handleSetAbout = (setAbout: boolean) => setShowAbout(setAbout);
 
   // Need a way to return to the get epub page -- set the epubName to "" ? What if changes needed? Maybe save changes as we go?

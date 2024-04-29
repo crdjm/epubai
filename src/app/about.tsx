@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 
 interface Props {
-    handleSetUser: (userName: string) => void;
+    handleSetUser: (userName: string) => boolean;
     handleSetAbout: (setAbout: boolean) => void;
     currentUser: string;
     appVersion: string;
@@ -16,9 +16,11 @@ export default function About(props: Props) {
     const appVersion = props.appVersion;
 
     const [localUser, setLocalUser] = useState<string>(currentUser);
+    const [message, setMessage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     function changeKey(val: string) {
-        handleSetUser(val);
+        // handleSetUser(val);
         setLocalUser(val);
     }
 
@@ -28,48 +30,16 @@ export default function About(props: Props) {
 
             var formData = new FormData(e.target);
             const form_values = Object.fromEntries(formData);
+            const ok = handleSetUser(form_values.email as string);
 
-
-            // Assume it is a valid email
-            handleSetAbout(false);
-
-            //alert(form_values.licenseKey);
-
-            // localWindow.localStorage.setItem("myEmail", gemeniKey);
-
-            // if (!accessList) {
-            //     alert("Sorry, can't get access list to verify your email.");
-            //     return;
-            // }
-
-            // // If the status says stop, don't even both checking. We'll already have a message saying why
-            // if (accessList.stop) {
-            //     setShowAbout(true);
-            //     return;
-            // }
-
-            // // setMessage(JSON.stringify(accessList, null, 2));
-
-            // let ok = false;
-            // for (let i = 0; i < accessList.users.length; i++) {
-            //     const check = accessList.users[i].email;
-            //     if (check === gemeniKey) {
-            //         ok = true;
-            //         break
-            //     }
-            // }
-            // if (!ok) {
-            //     setError("Sorry, can't verify your email. Did you register this email with djm@boulderwall.com?");
-            //     return;
-            // }
-
-            // // setGemeniKey(apiKey);
-            // if (ok) {
-            //     setError(null);
-            //     setShowAbout(false);
-            // }
+            if (!ok) {
+                setError("Invalid user name, have you registered through djm@boulderwall.com?");
+                setTimeout(function () {
+                    setError(null); // Clear error message
+                }, 4000);
+            }
         } catch (error) {
-            alert(error);
+            setError(error as string);
         }
     }
 
@@ -82,21 +52,20 @@ export default function About(props: Props) {
 
         </div>
         <form className="flex w-full justify-center align-center space-x-2" onSubmit={handleSubmit}>
-            {/* <Label htmlFor="licenseKey" className="mt-3">Email</Label> */}
-            <Input type="email" id="licenseKey" name="licenseKey" placeholder="Your email address" value={localUser} onChange={e => changeKey(e.currentTarget.value)} />
+            <Input type="email" id="email" name="email" placeholder="Your email address" value={localUser} onChange={e => changeKey(e.currentTarget.value)} />
             <Button type="submit">Apply</Button>
         </form>
         <div className="w-full bg-gray-300 rounded-lg p-4 text-sm text-gray-600 ">
-            EpubAI uses AI to generate captions for images. All captions are generated in good faith and for general information purpose only.
+            EpubAI uses AI to generate captions for images and update other contentr. All captions and related information are generated in good faith and for general information purposes only.
             Boulderwall Software does not make any warranties about the completeness, reliability, and accuracy of this information.
-            Any action you take upon the information you find using CaptionIT is strictly at your own risk. Boulderwall Software will not be
+            Any action you take upon the information you find using EpubAI is strictly at your own risk. Boulderwall Software will not be
             liable for any losses and/or damages in connection with the use of our software.
         </div>
         <div className="bg-gray-300 rounded-lg p-4 text-sm text-gray-600 text-right">
             © 2024, Boulderwall Software
         </div>
 
-        {/* {
+        {
             error && error.length > 0 && <div className="bg-red-300 rounded-lg p-4 text-sm text-gray-600">
                 {error}
             </div>
@@ -106,7 +75,7 @@ export default function About(props: Props) {
             message && message.length > 0 && <div className="bg-red-300 rounded-lg p-4 text-sm text-gray-600">
                 {message}
             </div>
-        } */}
+        }
 
     </div >
 }

@@ -93,6 +93,7 @@ export default function ImgageList(props: Props) {
 
     const [message, setMessage] = useState('');
     const [saveAs, setSaveAs] = useState<String | null>(null);
+    const [component, setComponent] = useState<string | null>("images");
 
     const [metadata, setMetadata] = useState<any | null>(null);
     const [spine, setSpine] = useState<any | null>(null);
@@ -101,6 +102,10 @@ export default function ImgageList(props: Props) {
 
     const [imageList, setImageList] = useState<any[]>([]);
     const [fullImageList, setFullImageList] = useState<any[]>([]);
+
+    const [fullMathList, setFullMathList] = useState<any[]>([]);
+    const [currentMathIndex, setCurrentMathIndex] = useState(0);
+
 
     const saveNeeded =
         !imageList.some(img => img.original_alt.localeCompare(img.alt) !== 0)
@@ -274,9 +279,10 @@ export default function ImgageList(props: Props) {
 
             let metadataIn = null;
             let fullImageList = [];
+            let fullMathList = [];
 
             // TODO remove existimg cache files if we re-load the samme epub in case it has changed
-            if (1 && saveExists && metadataExists) {
+            if (0 && saveExists && metadataExists) {
                 metadataIn = JSON.parse(await readTextFile(savedMetadata));
                 setMetadata(metadataIn.metadata);
                 setSpine(metadataIn.spine);
@@ -301,11 +307,15 @@ export default function ImgageList(props: Props) {
                 let imgs: { [key: string]: boolean } = {};
 
                 let index = 0;
+                let mathIndex = 0;
                 for (const page of spine) {
                     const fileName = path.join(epubPath, resources[page][0]);
                     const file = await readTextFile(fileName);
                     // const doc = new DOMParser().parseFromString(file, 'text/xml')
                     const doc = IDOMParser.parse(file, 'text/xml');
+
+
+                    // Extract image details
                     const images = doc.documentElement.getElementsByTagName('img');
                     if (images.length > 0) {
                         index++;
@@ -373,6 +383,26 @@ export default function ImgageList(props: Props) {
 
                         }
                     }
+
+                    const maths = doc.documentElement.getElementsByTagNameNS('*', 'math');
+                    if (maths.length > 0) {
+
+                        mathIndex++;
+
+                        for (let math = 0; math < maths.length; math++) {
+                            const el = maths.item(math);
+                            if (!el) continue;
+                            let entry: any = {};
+                            entry.mathml = maths[math].outerHTML;
+                            entry.index = mathIndex;
+                            // entry.filename = resources[page][0];
+                            fullMathList.push(entry);
+
+                        }
+
+                    }
+
+
                 }
 
                 setOriginalEpub(epubName);
@@ -391,12 +421,19 @@ export default function ImgageList(props: Props) {
 
             setFullImageList(fullImageList);
             setImageList(fullImageList);
+            setFullMathList(fullMathList);
+
             if (fullImageList.length > 0) {
                 setCurrentImage(fullImageList[0]);
                 setNewContext(fullImageList[0].context);
                 setCurrentAlt(fullImageList[0].alt);
                 setNewAlt(fullImageList[0].alt);
             }
+
+            if (fullMathList.length > 0) {
+                setCurrentMathIndex(0);
+            }
+
             setLoading(false);
 
         } catch (err) {
@@ -467,6 +504,21 @@ export default function ImgageList(props: Props) {
             }
         }
     }
+
+    function nextMath() {
+        if (currentMathIndex < fullMathList.length - 1) {
+            setCurrentMathIndex(currentMathIndex + 1);
+        }
+    }
+
+    function previousMath() {
+
+        if (currentMathIndex > 0) {
+            setCurrentMathIndex(currentMathIndex - 1);
+        }
+    }
+
+
 
     function setImage(index: number) {
         setCurrentImage(imageList[index]);
@@ -624,7 +676,7 @@ export default function ImgageList(props: Props) {
             <Tippy content={<span>Switch to another epub</span>}>
                 <Button onClick={newEpub}>Switch epub</Button>
             </Tippy>
-            <Select defaultValue='images'>
+            <Select defaultValue='images' onValueChange={(value) => setComponent(value)}>
                 <SelectTrigger className="w-[100px]">
                     <SelectValue placeholder="Type" />
                 </SelectTrigger>
@@ -636,21 +688,36 @@ export default function ImgageList(props: Props) {
             </Select>
 
             <div className="flex-grow text-red-400">{message}</div>
-            <Tippy content={<span>Only show images with missing, or single word alt text</span>}>
-                <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
-            </Tippy>
 
 
-            <Button variant="outline" disabled={currentIndex === 0} size="icon" onClick={previousImage}><ChevronLeft className="h-4 w-4" /></Button>
-            <span>{currentIndex + 1} / {imageList.length}</span>
-            <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
+            {(component === "images" ?
+                <>
+                    <Tippy content={<span>Only show images with missing, or single word alt text</span>}>
+                        <Button onClick={toggleWhatToShow}>{show == WhatToShow.ShowMissingAlt ? "Show All" : "Refine List"}</Button>
+                    </Tippy>
+                    <Button variant="outline" disabled={currentIndex === 0} size="icon" onClick={previousImage}><ChevronLeft className="h-4 w-4" /></Button>
+                    <span>{currentIndex + 1} / {imageList.length}</span>
+                    <Button variant="outline" disabled={currentIndex === imageList.length - 1} size="icon" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
+                </> : <></>)}
+
+            {(component === "math" ?
+                <>
+                    <Button variant="outline" disabled={currentMathIndex === 0} size="icon" onClick={previousMath}><ChevronLeft className="h-4 w-4" /></Button>
+                    <span>{currentMathIndex + 1} / {fullMathList.length}</span>
+                    <Button variant="outline" disabled={currentMathIndex === fullMathList.length - 1} size="icon" onClick={nextMath}><ChevronRight className="h-4 w-4" /></Button>
+                </> : <></>)}
+
+
+
+
         </div>
         {/* <div>{originalEpub}</div> */}
         <div className="grow flex flex-col  px-2 py-2 gap-1  bg-blue-50 min-h-full min-w-full">
             <h3 className="animate-text bg-gradient-to-r from-slate-800  to-slate-500 bg-clip-text text-transparent text-2xl font-black">{metadata?.title}</h3>
 
             <div className='flex p-1 overflow-x-scroll min-h-12 min-w-full gap-2 items-center justify-center bg-blue-100 border rounded-lg border-blue-100'>
-                {imageList.map((img, index) => (
+
+                {component === "images" && imageList.map((img, index) => (
                     <div key={index}
                         className={`${colorVariants[currentIndex === index ? 'blue' : 'red']} ${updatedAlt[img.original_alt.localeCompare(img.alt) ? 'changed' : 'original']} `}>
 
@@ -663,155 +730,189 @@ export default function ImgageList(props: Props) {
                     </div>
 
                 ))}
+
+
             </div>
 
-            {loading &&
+            {(loading ?
                 <div className="flex-grow flex justify-center items-center  h-full relative">
                     <p className="text-2xl font-black">Loading epub</p>
                 </div>
-            }
+                : null)}
 
-            {loading === false && imageList.length === 0 &&
-                <div className="flex-grow flex justify-center items-center  h-full relative">
-                    <p className="text-2xl font-black">No images found in this epub</p>
-                </div>
-            }
+            {(component === "images" ?
+                (loading === false && imageList.length === 0 &&
+                    <div className="flex-grow flex justify-center items-center  h-full relative">
+                        <p className="text-2xl font-black">No images found in this epub</p>
+                    </div>
+                )
+                : null)}
 
 
             {
-                currentImage &&
-                <h2 className='text-l text-blue-700'>{path.basename(currentImage.image)}</h2>
-            }
+                component === "images" && currentImage &&
+                <>
+                    <h2 className='text-l text-blue-700'>{path.basename(currentImage.image)}</h2>
 
-            {
-                currentImage &&
-                <div className="flex-grow flex justify-center items-center  h-full relative">
-                    <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
-                </div>
-            }
-
-            {
-                currentImage &&
-                <div className="none w-full">
-                    <div className="flex items-center mb-1 gap-2 w-full">
-                        <div className="w-2/12">
-                            <Tippy content={<span>Image alt text in the epub</span>}>
-                                <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
-                                    Current Alt Text
-                                </label>
-                            </Tippy>
-                        </div>
-                        <div className="w-9/12">
-                            <AutosizeTextarea id="alt" readOnly={false}
-                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
-                                value={currentAlt ? currentAlt : "[Empty]"} />
-
-                            {/* <Input id="alt" readOnly={false}
-                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
-                                type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} /> */}
-                        </div>
-
-                        {currentAlt.localeCompare(currentImage.original_alt) !== 0 &&
-                            <div className='w-1/12'>
-
-                                <Tippy content={<span>Reset the alt text to what it is in the current epub</span>}>
-
-
-                                    <Button disabled={busy}
-                                        className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'original' : 'invisible']} max-w-full disabled:opacity-0`}
-                                        onClick={ResetAlt}>
-
-                                        Reset</Button>
-                                </Tippy>
-                            </div>
-                        }
-
-                        {currentAlt.localeCompare(currentImage.original_alt) === 0 &&
-                            <div className='w-1/12'>
-
-                                <Tippy content={<span>Evaluate the current alt text to see if it is suitable for the image</span>}>
-
-
-                                    <Button disabled={busy}
-                                        className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'invisible' : 'original']} max-w-full disabled:opacity-0`}
-                                        onClick={verifyAlt}>
-
-                                        Verify</Button>
-                                </Tippy>
-
-                            </div>
-                        }
-                        {/* <div className="w-1/12" /> */}
+                    <div className="flex-grow flex justify-center items-center  h-full relative m-2">
+                        <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
                     </div>
 
-                    <div className="flex items-center mb-1 w-full gap-2">
-                        <div className="w-2/12">
+                    <div className="none w-full">
+                        <div className="flex items-center mb-1 gap-2 w-full">
+                            <div className="w-2/12">
+                                <Tippy content={<span>Image alt text in the epub</span>}>
+                                    <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
+                                        Current Alt Text
+                                    </label>
+                                </Tippy>
+                            </div>
+                            <div className="w-9/12">
+                                <AutosizeTextarea id="alt" readOnly={false}
+                                    className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                    value={currentAlt ? currentAlt : "[Empty]"} />
 
-                            {/* <TooltipProvider>
+                                {/* <Input id="alt" readOnly={false}
+                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} /> */}
+                            </div>
+
+                            {currentAlt.localeCompare(currentImage.original_alt) !== 0 &&
+                                <div className='w-1/12'>
+
+                                    <Tippy content={<span>Reset the alt text to what it is in the current epub</span>}>
+
+
+                                        <Button disabled={busy}
+                                            className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'original' : 'invisible']} max-w-full disabled:opacity-0`}
+                                            onClick={ResetAlt}>
+
+                                            Reset</Button>
+                                    </Tippy>
+                                </div>
+                            }
+
+                            {currentAlt.localeCompare(currentImage.original_alt) === 0 &&
+                                <div className='w-1/12'>
+
+                                    <Tippy content={<span>Evaluate the current alt text to see if it is suitable for the image</span>}>
+
+
+                                        <Button disabled={busy}
+                                            className={`${updatedAlt[currentAlt.localeCompare(currentImage.original_alt) ? 'invisible' : 'original']} max-w-full disabled:opacity-0`}
+                                            onClick={verifyAlt}>
+
+                                            Verify</Button>
+                                    </Tippy>
+
+                                </div>
+                            }
+                            {/* <div className="w-1/12" /> */}
+                        </div>
+
+                        <div className="flex items-center mb-1 w-full gap-2">
+                            <div className="w-2/12">
+
+                                {/* <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild> */}
-                            {/* <div className='has-tooltip'> */}
-                            <Tippy content={<span>The context of the image to help create an accurate description.<br />Check to include when generating the alt text</span>}>
-                                <Label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='context'>
-                                    Context
-                                    <Checkbox className="ml-4" onClick={() => setIncludeContext(!includeContext)} checked={includeContext} id="include" />
+                                {/* <div className='has-tooltip'> */}
+                                <Tippy content={<span>The context of the image to help create an accurate description.<br />Check to include when generating the alt text</span>}>
+                                    <Label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='context'>
+                                        Context
+                                        <Checkbox className="ml-4" onClick={() => setIncludeContext(!includeContext)} checked={includeContext} id="include" />
 
-                                    {/* <label
+                                        {/* <label
                                                 htmlFor="include"
                                                 className="text-xs leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                             >
 
                                             </label> */}
-                                </Label>
-                                {/* </div> */}
-                                {/* </TooltipTrigger>
+                                    </Label>
+                                    {/* </div> */}
+                                    {/* </TooltipTrigger>
                                     <TooltipContent className="p-0 ml-4">
                                         <p className="italic bg-green-50 p-2">The context of the image to help create an accurate description<br />Check to include when generating the alt text</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider> */}
-                            </Tippy>
+                                </Tippy>
+                            </div>
+                            <div className="w-9/12">
+
+                                <AutosizeTextarea id="context"
+                                    onChange={(e) => setNewContext(e.target.value)}
+                                    className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                    // placeholder={currentImage.context}
+                                    value={newContext} />
+                                {/* <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} /> */}
+
+                            </div>
+
+                            <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={generateAltText}>Generate</Button>
+
                         </div>
-                        <div className="w-9/12">
+                        <div className="flex items-center mb-1 w-full gap-2">
+                            <div className="w-2/12">
+                                <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='newAlt'>
+                                    New Alt Text
+                                </label>
+                            </div>
+                            <div className="w-9/12">
+                                <AutosizeTextarea id="newAlt"
+                                    onChange={(e) => setNewAlt(e.target.value)}
+                                    className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                    // placeholder={currentImage.alt}
+                                    value={newAlt} />
 
-                            <AutosizeTextarea id="context"
-                                onChange={(e) => setNewContext(e.target.value)}
-                                className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
-                                // placeholder={currentImage.context}
-                                value={newContext} />
-                            {/* <Input id="context" className="bg-gray-100  border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100" type="text" placeholder={currentImage.context} /> */}
-
-                        </div>
-
-                        <Button disabled={busy} className="w-1/12 disabled:opacity-75 disabled:bg-slate-200" onClick={generateAltText}>Generate</Button>
-
-                    </div>
-                    <div className="flex items-center mb-1 w-full gap-2">
-                        <div className="w-2/12">
-                            <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='newAlt'>
-                                New Alt Text
-                            </label>
-                        </div>
-                        <div className="w-9/12">
-                            <AutosizeTextarea id="newAlt"
-                                onChange={(e) => setNewAlt(e.target.value)}
-                                className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
-                                // placeholder={currentImage.alt}
-                                value={newAlt} />
-
-                            {/* <Input id="newAlt"
+                                {/* <Input id="newAlt"
                                 onChange={(e) => setNewAlt(e.target.value)}
                                 className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
                                 type="text"
                                 placeholder={currentImage.alt}
                                 value={newAlt} /> */}
 
-                        </div>
-                        <Button disabled={busy} className={`${updatedAlt[currentAlt.localeCompare(newAlt) ? 'original' : 'invisible']} w-1/12 disabled:opacity-75 disabled:bg-slate-200`} onClick={applyNewAlt}>Apply</Button>
+                            </div>
+                            <Button disabled={busy} className={`${updatedAlt[currentAlt.localeCompare(newAlt) ? 'original' : 'invisible']} w-1/12 disabled:opacity-75 disabled:bg-slate-200`} onClick={applyNewAlt}>Apply</Button>
 
+                        </div>
                     </div>
-                </div>
+
+                </>
             }
+
+
+            {(component === "math" ?
+                (loading === false && fullMathList.length === 0 &&
+                    <div className="flex-grow flex justify-center items-center  h-full relative">
+                        <p className="text-2xl font-black">No math found in this epub</p>
+                    </div>
+                )
+                : null)}
+
+            {component === "math" && fullMathList.length > 0 &&
+                <>
+
+                    <div className="flex-grow flex justify-center items-center  h-full relative m-2">
+                        <div className="text-5xl p-4 absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl">
+                            <div dangerouslySetInnerHTML={{ __html: fullMathList[currentMathIndex].mathml }} />
+                        </div>
+                        {/* <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img> */}
+                    </div>
+
+                    <div className="none w-full">
+                        Alt text, fallback image....
+                    </div>
+
+
+                    {/* <div>{fullMathList[currentMathIndex].filename}</div> */}
+                </>
+
+
+
+            }
+
+
 
         </div>
 
