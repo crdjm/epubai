@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select"
 
 
+
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
 
@@ -105,6 +106,8 @@ export default function ImgageList(props: Props) {
 
     const [fullMathList, setFullMathList] = useState<any[]>([]);
     const [currentMathIndex, setCurrentMathIndex] = useState(0);
+    const [currentMath, setCurrentMath] = useState<any | null>(null);
+
 
 
     const saveNeeded =
@@ -126,6 +129,7 @@ export default function ImgageList(props: Props) {
 
     const [key, setKey] = useState<string>("");
     const [model, setModel] = useState<any>(null);
+    const [textModel, setTextModel] = useState<any>(null);
 
     const [isAlertDialogOpen, setAlertDialogOpen] = useState(false)
 
@@ -161,6 +165,7 @@ export default function ImgageList(props: Props) {
             setKey(tmpKey);
             const genAI = new GoogleGenerativeAI(tmpKey ? tmpKey : "UNDEFINED");
             setModel(genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings }));
+            setTextModel(genAI.getGenerativeModel({ model: "gemini-pro", safetySettings }));
             // alert(model);
 
         } else {
@@ -395,6 +400,8 @@ export default function ImgageList(props: Props) {
                             let entry: any = {};
                             entry.mathml = maths[math].outerHTML;
                             entry.index = mathIndex;
+                            entry.alt = maths[math].getAttribute('alttext') || "";
+                            entry.current_alt = entry.alt;
                             // entry.filename = resources[page][0];
                             fullMathList.push(entry);
 
@@ -432,6 +439,7 @@ export default function ImgageList(props: Props) {
 
             if (fullMathList.length > 0) {
                 setCurrentMathIndex(0);
+                setCurrentMath(fullMathList[0]);
             }
 
             setLoading(false);
@@ -507,14 +515,14 @@ export default function ImgageList(props: Props) {
 
     function nextMath() {
         if (currentMathIndex < fullMathList.length - 1) {
-            setCurrentMathIndex(currentMathIndex + 1);
+            setMath(currentMathIndex + 1);
         }
     }
 
     function previousMath() {
 
         if (currentMathIndex > 0) {
-            setCurrentMathIndex(currentMathIndex - 1);
+            setMath(currentMathIndex - 1);
         }
     }
 
@@ -526,6 +534,15 @@ export default function ImgageList(props: Props) {
         setNewAlt(imageList[index].alt);
         setCurrentAlt(imageList[index].alt);
         setNewContext(imageList[index].context);
+
+    }
+    function setMath(index: number) {
+
+        setCurrentMathIndex(index);
+        setCurrentMath(fullMathList[index]);
+
+        setNewAlt(fullMathList[index].alt);
+        setCurrentAlt(fullMathList[index].alt);
 
     }
 
@@ -652,6 +669,39 @@ export default function ImgageList(props: Props) {
                 setBusy(false);
             }
 
+        }
+    }
+
+    async function generateMathAlt() {
+
+        try {
+
+            setBusy(true);
+            briefMessage("Generating mathalt text...");
+
+            let ai_prompt =
+                "Generate alt text for this mathml: " + currentMath.mathml;
+
+            const result = await textModel.generateContent(ai_prompt);
+            const text = result.response.text();
+            // console.log(result.response.text());
+            // alert(ai_prompt);
+
+
+            // const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
+
+            // const response = gemeniResult.response;
+            // let text = response.text();
+
+            setNewAlt(text.trim());
+
+            setBusy(false);
+
+            // alert(JSON.stringify(response));
+
+        } catch (err) {
+            alert(err);
+            setBusy(false);
         }
     }
 
@@ -901,7 +951,93 @@ export default function ImgageList(props: Props) {
                     </div>
 
                     <div className="none w-full">
-                        Alt text, fallback image....
+                        <div className="flex items-center mb-1 gap-2 w-full">
+                            <div className="w-2/12">
+                                <Tippy content={<span>Math alt text in the epub</span>}>
+                                    <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor="alt">
+                                        Current Alt Text
+                                    </label>
+                                </Tippy>
+                            </div>
+                            <div className="w-9/12">
+                                <AutosizeTextarea id="alt" readOnly={false}
+                                    className={`${colorVariants[currentMath.alt ? 'alt' : 'empty']}  bg-white border-2 border-gray-200 rounded w-full py-2 px-2 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                    value={currentAlt ? currentAlt : "[Empty]"} />
+
+                                {/* <Input id="alt" readOnly={false}
+                                className={`${colorVariants[currentImage.alt ? 'alt' : 'empty']} bg-white border-2 border-gray-200 rounded w-full py-2 px-4 leading-tight focus:outline-none focus:bg-white focus:border-blue-100`}
+                                type="text" value={currentImage.alt ? currentImage.alt : "[Empty]"} /> */}
+                            </div>
+
+                            {currentAlt.localeCompare(currentMath.original_alt) !== 0 &&
+                                <>
+                                    {/* <div className='w-1/12'>
+
+                                        <Tippy content={<span>Reset the alt text to what it is in the current epub</span>}>
+
+
+                                            <Button disabled={busy}
+                                                className={`${updatedAlt[currentAlt.localeCompare(currentMath.original_alt) ? 'original' : 'invisible']} max-w-full disabled:opacity-0`}
+                                                onClick={ResetAlt}>
+
+                                                Reset</Button>
+
+                                        </Tippy>
+                                    </div> */}
+
+                                    <div className='w-1/12'>
+                                        <Tippy content={<span>Generate alt text for this math</span>}>
+
+
+                                            <Button disabled={busy}
+                                                className={`${updatedAlt[currentAlt.localeCompare(currentMath.original_alt) ? 'original' : 'invisible']} max-w-full disabled:opacity-0`}
+                                                onClick={generateMathAlt}>
+
+                                                Generate</Button>
+                                        </Tippy>
+                                    </div>
+                                </>
+                            }
+
+                            {currentAlt.localeCompare(currentMath.original_alt) === 0 &&
+                                <div className='w-1/12'>
+
+                                    <Tippy content={<span>Evaluate the current alt text to see if it is suitable for the image</span>}>
+
+
+                                        <Button disabled={busy}
+                                            className={`${updatedAlt[currentAlt.localeCompare(currentMath.original_alt) ? 'invisible' : 'original']} max-w-full disabled:opacity-0`}
+                                            onClick={verifyAlt}>
+
+                                            Verify</Button>
+                                    </Tippy>
+
+                                </div>
+                            }
+                            {/* <div className="w-1/12" /> */}
+                        </div>
+
+                        <div className="flex items-center mb-1 w-full gap-2">
+                            <div className="w-2/12">
+                                <label className="block text-gray-500 md:text-right mb-1 md:mb-0 pr-2" htmlFor='newAlt'>
+                                    New Alt Text
+                                </label>
+                            </div>
+                            <div className="w-9/12">
+                                <AutosizeTextarea id="newAlt"
+                                    onChange={(e) => setNewAlt(e.target.value)}
+                                    className="bg-gray-100 appearance-none border-2 border-gray-200 rounded w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-100"
+                                    value={newAlt} />
+
+
+
+                            </div>
+                            <Button disabled={busy} className={`${updatedAlt[currentAlt.localeCompare(newAlt) ? 'original' : 'invisible']} w-1/12 disabled:opacity-75 disabled:bg-slate-200`} onClick={applyNewAlt}>Apply</Button>
+
+                        </div>
+
+
+
                     </div>
 
 
