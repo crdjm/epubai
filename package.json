@@ -29,6 +29,7 @@
     "next": "14.1.4",
     "react": "^18",
     "react-dom": "^18",
+    "react-reader": "^2.0.11",
     "tailwind-merge": "^2.2.2",
     "tailwindcss-animate": "^1.0.7",
     "tauri-plugin-log-api": "github:tauri-apps/tauri-plugin-log"
