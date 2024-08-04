@@ -23,6 +23,8 @@ use zip::write::ZipWriter;
 use epub::doc::EpubDoc;
 use walkdir::WalkDir;
 
+// use std::process;
+
 fn main() {
     let about = CustomMenuItem::new("about".to_string(), "About epubAI");
     let submenu = Submenu::new(
@@ -35,6 +37,21 @@ fn main() {
         .add_submenu(submenu);
 
     tauri::Builder::default()
+        // .setup(|app| {
+        //     match app.get_cli_matches() {
+        //         // `matches` here is a Struct with { args, subcommand }.
+        //         // `args` is `HashMap<String, ArgData>` where `ArgData` is a struct with { value, occurrences }.
+        //         // `subcommand` is `Option<Box<SubcommandMatches>>` where `SubcommandMatches` is a struct with { name, matches }.
+        //         Ok(matches) => {
+        //             // println!("{:?}", matches.args["source"].value);
+        //             // if matches.args["source"].occurrences > 0 {
+        //             //     process::exit(0x0100);
+        //             // }
+        //         }
+        //         Err(_) => {}
+        //     }
+        //     Ok(())
+        // })
         .menu(menu)
         .on_menu_event(|event| {
             match event.menu_item_id() {
@@ -172,6 +189,8 @@ fn create_epub(name: &str, output: &str) -> String {
 
     // Iterate over files in the folder
     let folder = Path::new(name);
+    println!("Using content from folder {}", name);
+
     let mut buffer = Vec::new();
     for entry in it {
         // for entry in fs::read_dir(folder).expect("Failed to read directory") {
@@ -215,7 +234,7 @@ fn create_epub(name: &str, output: &str) -> String {
         .finish()
         .expect("Failed to finish writing EPUB file");
 
-    //     println!("EPUB file '{}' created successfully!", output_filename);
+    println!("EPUB file '{}' created successfully!", output);
 
     format!("Expand, {}!", name)
 }

@@ -11,6 +11,27 @@
     "version": "0.1.0"
   },
   "tauri": {
+    "cli": {
+      "description": "",
+      "longDescription": "",
+      "beforeHelp": "",
+      "afterHelp": "",
+      "args": [
+        {
+          "name": "source",
+          "index": 1,
+          "takesValue": true
+        },
+        {
+          "name": "destination",
+          "index": 2,
+          "takesValue": true
+        }
+      ],
+      "subcommands": {
+        "subcommand-name": {}
+      }
+    },
     "allowlist": {
       "all": false,
       "dialog": {
@@ -34,7 +55,11 @@
         "exists": true,
         "scope": [
           "$CACHE/**",
-          "$CONFIG/**"
+          "$CONFIG/**",
+          "$DOCUMENT/**",
+          "$APPCACHE/**",
+          "**",
+          "./**"
         ]
       },
       "protocol": {
@@ -42,7 +67,9 @@
         "assetScope": [
           "$APPCACHE/**",
           "$DOCUMENT/**",
-          "$CACHE/**"
+          "$CACHE/**",
+          "**",
+          "./**"
         ]
       },
       "http": {

@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 
-import { exists, readDir, BaseDirectory } from '@tauri-apps/api/fs';
+import { exists, removeFile, readDir, BaseDirectory, removeDir } from '@tauri-apps/api/fs';
 import path from 'path';
 
 import {
@@ -164,9 +164,43 @@ export default function GetEpub(props: Props) {
         setAlertDialogOpen(true);
         // Needs to update loadedEpubs, and delete the disk content
     }
-    function handleRemoveEpub() {
+    async function handleRemoveEpub() {
         const folder = removeEpubName.replace(".epub", "");
-        alert("Removing " + folder);
+
+
+        let found = 0;
+        let newEpubList: [string] | null = null;
+        if (loadedEpubs) {
+            const newName = path.basename(removeEpubName);
+            for (let i = 0; i < loadedEpubs.length; i++) {
+                const oldName = path.basename(loadedEpubs[i]);
+                if (newName.localeCompare(oldName) === 0) {
+                    found = i;
+                } else {
+                    if (newEpubList === null) newEpubList = [loadedEpubs[i]];
+                    else
+                        newEpubList.push(loadedEpubs[i]);
+                }
+            }
+            if (found > -1) {
+                alert("Removing " + folder + ".json");
+                const jsonExists = await exists(folder + ".json");
+                if (jsonExists) await removeFile(folder + ".json");
+
+                const mathExists = await exists(folder + "_math.json");
+                if (mathExists) await removeFile(folder + "_math.json");
+
+                const metadataExists = await exists(folder + "_metadata.json");
+                if (metadataExists) await removeFile(folder + "_metadata.json");
+
+                const folderExists = await exists(folder);
+                if (folderExists) await removeDir(folder, { recursive: true });
+
+                setLoadedEpubs(newEpubList);
+            } else {
+                alert("Error: Could not find " + folder);
+            }
+        }
         // Needs to update loadedEpubs, and delete the disk content
     }
 

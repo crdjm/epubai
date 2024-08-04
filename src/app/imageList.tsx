@@ -44,6 +44,8 @@ import { convertFileSrc } from '@tauri-apps/api/tauri';
 import { exists, readBinaryFile, writeTextFile } from "@tauri-apps/api/fs";
 import path from 'path';
 
+var crypto = require('crypto');
+
 // import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 // import IDOMParser from "advanced-html-parser";  // This causes type issues, which should be fixed
 const IDOMParser = require("advanced-html-parser");
@@ -110,6 +112,8 @@ export default function ImgageList(props: Props) {
     const [currentMath, setCurrentMath] = useState<any | null>(null);
     const [hasFallbackImage, setHasFallbackImage] = useState(false);
 
+    const [htmlContent, setHtmlContent] = useState("");
+
 
 
     const saveNeeded =
@@ -167,7 +171,8 @@ export default function ImgageList(props: Props) {
         if (tmpKey) {
             setKey(tmpKey);
             const genAI = new GoogleGenerativeAI(tmpKey ? tmpKey : "UNDEFINED");
-            setModel(genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings }));
+            // setModel(genAI.getGenerativeModel({ model: "gemini-pro-vision", safetySettings }));
+            setModel(genAI.getGenerativeModel({ model: "gemini-1.5-flash", safetySettings }));
             setTextModel(genAI.getGenerativeModel({ model: "gemini-pro", safetySettings }));
             // alert(model);
 
@@ -192,7 +197,7 @@ export default function ImgageList(props: Props) {
         });
         if (path) {
 
-            save_epub_details(); // get_epub_details() in reverse
+            await save_epub_details(); // get_epub_details() in reverse
             setSaveAs(path);
             // const output = (saveAs ? saveAs : epubName.replace(".epub", "_output.epub"));
 
@@ -292,7 +297,7 @@ export default function ImgageList(props: Props) {
             let fullImageList = [];
             let fullMathList = [];
 
-            // TODO remove existimg cache files if we re-load the samme epub in case it has changed
+            // TODO remove existimg cache files if we re-load the same epub in case it has changed
             if (0 && saveExists && metadataExists && mathExists) {
                 metadataIn = JSON.parse(await readTextFile(savedMetadata));
                 setMetadata(metadataIn.metadata);
@@ -309,12 +314,6 @@ export default function ImgageList(props: Props) {
                 setMetadata(metadata);
                 setSpine(spine);
                 setResources(resources);
-
-                // alert(epubPath);
-
-                // let msg = "";
-                // let first = true;
-                // let imageDisplay = [];
 
                 let imgs: { [key: string]: boolean } = {};
 
@@ -341,6 +340,7 @@ export default function ImgageList(props: Props) {
                             // let t: string = "";
                             // const src = images[img].getAttribute('src');
                             // entry.src = images[img].getAttribute('src');
+                            entry.html = fileName; // Allow us to locate the image in context (IFRAME)
                             entry.src = el.getAttribute('src');
                             if (entry.src && !imgs[entry.src]) {
                                 imgs[entry.src] = true;
@@ -406,7 +406,10 @@ export default function ImgageList(props: Props) {
                             if (!el) continue;
                             let entry: any = {};
                             entry.mathml = maths[math].outerHTML;
+                            const mathml = (entry.mathml).replace(/ id="[^"]*"/g, "");
                             entry.index = mathIndex;
+                            // Allow us to ignore duplicate math fragments, and update them all at the same time
+                            entry.hash = crypto.createHash('md5').update(mathml).digest('hex');
                             entry.alt = maths[math].getAttribute('alttext') || "";
                             entry.current_alt = entry.alt;
                             // entry.filename = resources[page][0];
@@ -475,22 +478,6 @@ export default function ImgageList(props: Props) {
         filter_images(newShow);
     }
 
-    // Hpw to update state as a variant of the current state
-    // const updateColor = () => {
-    //     setCar(previousState => {
-    //       return { ...previousState, color: "blue" }
-    //     });
-    //   }
-
-    // async function handleSubmit(e: any) {
-    //     try {
-    //         if (e.preventDefault) e.preventDefault();
-
-    //         var formData = new FormData(e.target);
-    //         const form_values = Object.fromEntries(formData);
-    //     } catch (err) { alert(err) }
-    // }
-
 
     function newEpub() {
         // alert(imageList.some(img => img.original_alt.localeCompare(img.alt) !== 0));
@@ -536,13 +523,16 @@ export default function ImgageList(props: Props) {
 
 
 
-    function setImage(index: number) {
+    async function setImage(index: number) {
         setCurrentImage(imageList[index]);
         setCurrentIndex(index);
         setNewAlt(imageList[index].alt);
         setCurrentAlt(imageList[index].alt);
         setNewContext(imageList[index].context);
 
+        const html: string = await readTextFile(imageList[index].html);
+        setHtmlContent(html);
+        // alert("Set image to " + imageList[index].html + "\n" + html.length);
     }
     function setMath(index: number) {
 
@@ -671,6 +661,8 @@ export default function ImgageList(props: Props) {
                 const gemeniResult = await model.generateContent([ai_prompt, ...imageParts]);
 
                 const response = gemeniResult.response;
+
+                // alert(JSON.stringify(response));
                 let text = response.text();
 
                 setNewAlt(text.trim());
@@ -753,6 +745,15 @@ export default function ImgageList(props: Props) {
         invisible: 'opacity-10'
     }
 
+    // function iframeLoaded() {
+    //     let html = document.getElementById('html');
+    //     alert(html);
+    //     if (html) {
+    //         html.innerHTML = "<h1>Hello</h1>";
+    //     }
+    //     // let myIframe = document.getElementById('html') as HTMLIFrameElement
+    //     // if (myIframe && myIframe.contentWindow) myIframe.contentWindow.scrollTo(10, 1000);
+    // }
 
     return <div className="flex flex-col px-0 py-0 gap-0  bg-blue-50 min-h-full min-w-full">
         <div className="flex w-full items-center px-2 py-2 gap-2 bg-slate-200">
@@ -842,6 +843,15 @@ export default function ImgageList(props: Props) {
                     <div className="flex-grow flex justify-center items-center  h-full relative m-2">
                         <img className="absolute max-h-full bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
                     </div>
+
+                    <div className="overflow-y-auto overflow-x-hidden flex-grow max-w-fit h-14" dangerouslySetInnerHTML={{ __html: htmlContent }}></div>
+
+                    {/* IFRAME */}
+                    {/* <span>{convertFileSrc(currentImage.html)}</span> */}
+
+                    {/* <iframe id="html" onLoad={() => iframeLoaded()} className="none w-full" src={convertFileSrc(currentImage.html)} title="HTML"></iframe> */}
+
+                    {/* <object id="html" onLoad={() => iframeLoaded()} className="none w-full">HARRY</object> */}
 
                     <div className="none w-full">
                         <div className="flex items-center mb-1 gap-2 w-full">
