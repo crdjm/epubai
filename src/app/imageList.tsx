@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
 
 import { ReactReader } from 'react-reader'
+var CFI = require('epub-cfi-resolver');
 
 import {
     AlertDialog,
@@ -114,7 +115,7 @@ export default function ImgageList(props: Props) {
     const [currentMath, setCurrentMath] = useState<any | null>(null);
     const [hasFallbackImage, setHasFallbackImage] = useState(false);
 
-    // const [htmlContent, setHtmlContent] = useState("");
+    const [location, setLocation] = useState<0 | string>(0);
 
 
 
@@ -342,7 +343,10 @@ export default function ImgageList(props: Props) {
                             // let t: string = "";
                             // const src = images[img].getAttribute('src');
                             // entry.src = images[img].getAttribute('src');
-                            // entry.html = fileName; // Allow us to locate the image in context (IFRAME)
+                            entry.cfi = path.basename(resources[page][0]);
+                            if (el.getAttribute("id")) entry.cfi = entry.cfi + "#" + el.getAttribute("id");// "/" + CFI.generate(images[img]); // fileName; // Allow us to locate the image in context (IFRAME)
+                            else if (el.closest("*[@id]")) entry.cfi = entry.cfi + "#" + el.closest("*[@id]").getAttribute("id");
+                            else entry.cfi = "";
                             entry.src = el.getAttribute('src');
                             if (entry.src && !imgs[entry.src]) {
                                 imgs[entry.src] = true;
@@ -532,6 +536,12 @@ export default function ImgageList(props: Props) {
         setCurrentAlt(imageList[index].alt);
         setNewContext(imageList[index].context);
 
+        // setLocation(imageList[index].cfi);
+        if (imageList[index].cfi)
+            setLocation(imageList[index].cfi);
+
+        // setLocation("epubcfi(/6/2!/4/10[background]/6/1:499)");
+        // alert("CFI: " + imageList[index].cfi);
         // const html: string = await readTextFile(imageList[index].html);
 
         // const webview = new WebviewWindow('theUniqueLabel', {
@@ -752,6 +762,10 @@ export default function ImgageList(props: Props) {
         invisible: 'opacity-10'
     }
 
+
+    function epublocation(location: string) {
+        // alert("EPUB SET LOCATION: " + location);
+    }
     // function iframeLoaded() {
     //     let html = document.getElementById('html');
     //     alert(html);
@@ -862,8 +876,8 @@ export default function ImgageList(props: Props) {
                                 // url={convertFileSrc("/Users/crdjm/Library/Caches/epubai/pg14838-images/pg14838-images.epub")}
                                 // url="/mobydick.epub"
                                 // url="/pg14838-images.epub"
-                                location={0}
-                                locationChanged={(epubcfi: string) => void (epubcfi)} />
+                                location={location}
+                                locationChanged={(epubcfi: string) => epublocation(epubcfi)} />
                         </div>
                     </div>
 

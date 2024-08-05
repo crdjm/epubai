@@ -37,7 +37,7 @@ fn main() {
         .add_submenu(submenu);
 
     tauri::Builder::default()
-        // .setup(|app| {
+        // .setup(|app| { // npm run tauri dev --  -- -- <args>
         //     match app.get_cli_matches() {
         //         // `matches` here is a Struct with { args, subcommand }.
         //         // `args` is `HashMap<String, ArgData>` where `ArgData` is a struct with { value, occurrences }.
