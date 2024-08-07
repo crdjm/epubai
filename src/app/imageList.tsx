@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { DOMElement, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from "lucide-react"
@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
 
 import { ReactReader } from 'react-reader'
-var CFI = require('epub-cfi-resolver');
+// var CFI = require('epub-cfi-resolver');
 
 import {
     AlertDialog,
@@ -115,7 +115,7 @@ export default function ImgageList(props: Props) {
     const [currentMath, setCurrentMath] = useState<any | null>(null);
     const [hasFallbackImage, setHasFallbackImage] = useState(false);
 
-    const [location, setLocation] = useState<0 | string>(0);
+    const [location, setLocation] = useState<string | 0>(0);
 
 
 
@@ -274,6 +274,7 @@ export default function ImgageList(props: Props) {
         } catch (err) { alert(err) }
     }
 
+
     async function get_epub_details() {
         // alert(epubPath);
 
@@ -322,12 +323,15 @@ export default function ImgageList(props: Props) {
 
                 let index = 0;
                 let mathIndex = 0;
+
+                let spineIndex = 0;
                 for (const page of spine) {
                     const fileName = path.join(epubPath, resources[page][0]);
                     const file = await readTextFile(fileName);
                     // const doc = new DOMParser().parseFromString(file, 'text/xml')
                     const doc = IDOMParser.parse(file, 'text/xml');
 
+                    spineIndex += 2;
 
                     // Extract image details
                     const images = doc.documentElement.getElementsByTagName('img');
@@ -344,9 +348,14 @@ export default function ImgageList(props: Props) {
                             // const src = images[img].getAttribute('src');
                             // entry.src = images[img].getAttribute('src');
                             entry.cfi = path.basename(resources[page][0]);
+                            entry.html = fileName;
+
                             if (el.getAttribute("id")) entry.cfi = entry.cfi + "#" + el.getAttribute("id");// "/" + CFI.generate(images[img]); // fileName; // Allow us to locate the image in context (IFRAME)
-                            else if (el.closest("*[@id]")) entry.cfi = entry.cfi + "#" + el.closest("*[@id]").getAttribute("id");
-                            else entry.cfi = "";
+                            // else entry.cfi = entry.cfi + "#" + closeId;
+                            // else entry.cfi = "";
+
+                            // entry.cfi = "Spine " + spineIndex + "/" + CFI.generate(images[img]);
+
                             entry.src = el.getAttribute('src');
                             if (entry.src && !imgs[entry.src]) {
                                 imgs[entry.src] = true;
@@ -537,9 +546,12 @@ export default function ImgageList(props: Props) {
         setNewContext(imageList[index].context);
 
         // setLocation(imageList[index].cfi);
-        if (imageList[index].cfi)
+        if (imageList[index].cfi) {
+            // setLocation("epubcfi(/6/4!/4/4/86/1:0)");
+            // setLocation('epubcfi(/6/4!/4/80/2[id-5004529412748893830])');
+            // alert("CFI: " + imageList[index].cfi);
             setLocation(imageList[index].cfi);
-
+        }
         // setLocation("epubcfi(/6/2!/4/10[background]/6/1:499)");
         // alert("CFI: " + imageList[index].cfi);
         // const html: string = await readTextFile(imageList[index].html);
@@ -765,6 +777,9 @@ export default function ImgageList(props: Props) {
 
     function epublocation(location: string) {
         // alert("EPUB SET LOCATION: " + location);
+        // setLocation("xhtml/" + location);
+        setLocation(location);
+
     }
     // function iframeLoaded() {
     //     let html = document.getElementById('html');
@@ -870,6 +885,8 @@ export default function ImgageList(props: Props) {
                         {/* </div> */}
 
                         <div className="w-full flex-grow">
+                            {/* <iframe id="html" className="none w-full h-full" src={convertFileSrc(currentImage.html)} title="HTML"></iframe> */}
+
                             <ReactReader
                                 // url={convertFileSrc("/Users/crdjm/Desktop/WiseInk/9781634895712.epub")}
                                 url={convertFileSrc(fullpath)}
@@ -877,7 +894,34 @@ export default function ImgageList(props: Props) {
                                 // url="/mobydick.epub"
                                 // url="/pg14838-images.epub"
                                 location={location}
-                                locationChanged={(epubcfi: string) => epublocation(epubcfi)} />
+                                locationChanged={(epubcfi: string) => epublocation(epubcfi)}
+                                getRendition={(rendition) => {
+                                    const spine_get = rendition.book.spine.get.bind(rendition.book.spine);
+                                    rendition.book.spine.get = function (target: string) {
+                                        // console.log("target = " + target);
+
+                                        let t = spine_get(target);
+
+                                        if (t == null) {
+                                            const s = rendition.book.spine as any;
+                                            // console.log(s);
+
+                                            const p = s.spineItems[0].href;
+                                            if (p.indexOf("/") > 0) {
+                                                target = p.substring(0, p.lastIndexOf("/")) + "/" + target;
+                                                // target = "xhtml/" + target;
+                                                t = spine_get(target);
+                                            }
+                                        }
+                                        while ((t == null) && target && target.startsWith("../")) {
+                                            target = target.substring(3);
+                                            t = spine_get(target);
+                                        }
+                                        return t;
+                                    }
+                                }}
+
+                            />
                         </div>
                     </div>
 
@@ -893,9 +937,9 @@ export default function ImgageList(props: Props) {
 
                     <div className="none w-full">
                         <div className="flex items-center mb-1 gap-2 w-full">
-                            <img className="max-h-40 bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
+                            <img className="max-h-40 max-w-40 bg-slate-50 rounded-lg border border-slate-200 shadow-xl" src={convertFileSrc(currentImage.image)} alt={currentImage.alt}></img>
 
-                            <div className="flex-col items-center mb-1 gap-2 w-full">
+                            <div className="flex-col mb-1 gap-2 w-full">
 
                                 <div className="flex items-center mb-1 gap-2 w-full">
 
