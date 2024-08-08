@@ -67,6 +67,7 @@ export default function GetEpub(props: Props) {
             try {
 
                 const result = await invoke<string>('expand', { name: epubName });
+                // alert("Expanded " + epubName + " to " + result + " -- Add ids to images when missing");
                 handleSetEpubPath(result);
                 // .then(result => handleSetEpubPath(result))
                 // .catch(console.error);
@@ -183,15 +184,22 @@ export default function GetEpub(props: Props) {
                 }
             }
             if (found > -1) {
-                alert("Removing " + folder + ".json");
-                const jsonExists = await exists(folder + ".json");
-                if (jsonExists) await removeFile(folder + ".json");
+                // alert("Removing " + folder + ".json");
 
-                const mathExists = await exists(folder + "_math.json");
-                if (mathExists) await removeFile(folder + "_math.json");
+                // removeDir folder and folder_extras only
 
-                const metadataExists = await exists(folder + "_metadata.json");
-                if (metadataExists) await removeFile(folder + "_metadata.json");
+                const extras = folder + "_extras";
+                const extrasExists = await exists(extras);
+                if (extrasExists) await removeDir(extras, { recursive: true });
+
+                // const jsonExists = await exists(folder + ".json");
+                // if (jsonExists) await removeFile(folder + ".json");
+
+                // const mathExists = await exists(folder + "_math.json");
+                // if (mathExists) await removeFile(folder + "_math.json");
+
+                // const metadataExists = await exists(folder + "_metadata.json");
+                // if (metadataExists) await removeFile(folder + "_metadata.json");
 
                 const folderExists = await exists(folder);
                 if (folderExists) await removeDir(folder, { recursive: true });

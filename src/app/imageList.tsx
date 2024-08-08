@@ -44,7 +44,7 @@ import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/ge
 import { invoke } from '@tauri-apps/api/tauri';
 import { save } from '@tauri-apps/api/dialog';
 import { convertFileSrc } from '@tauri-apps/api/tauri';
-import { exists, readBinaryFile, writeTextFile } from "@tauri-apps/api/fs";
+import { exists, readBinaryFile, writeTextFile, createDir, copyFile } from "@tauri-apps/api/fs";
 import path from 'path';
 
 var crypto = require('crypto');
@@ -142,6 +142,8 @@ export default function ImgageList(props: Props) {
 
     const [isAlertDialogOpen, setAlertDialogOpen] = useState(false)
 
+    const extrasFolder = epubPath + "_extras";
+
     const safetySettings = [
         {
             category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -162,10 +164,9 @@ export default function ImgageList(props: Props) {
     ];
 
 
-
-    const savedImageList = epubPath + ".json";
-    const savedMathList = epubPath + "_math.json";
-    const savedMetadata = epubPath + "_metadata.json";
+    const savedImageList = extrasFolder + "/images.json"; //epubPath + ".json";
+    const savedMathList = extrasFolder + "/math.json"; //epubPath + "_math.json";
+    const savedMetadata = extrasFolder + "/metadata.json";  //epubPath + "_metadata.json";
 
 
     useEffect(() => {
@@ -274,9 +275,22 @@ export default function ImgageList(props: Props) {
         } catch (err) { alert(err) }
     }
 
+    function makeid(length: number) {
+        let result = '';
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const charactersLength = characters.length;
+        let counter = 0;
+        while (counter < length) {
+            result += characters.charAt(Math.floor(Math.random() * charactersLength));
+            counter += 1;
+        }
+        return result;
+    }
 
     async function get_epub_details() {
         // alert(epubPath);
+        // const baseId = makeid(5);
+
 
         const base = path.basename(epubName);
         try {
@@ -291,6 +305,11 @@ export default function ImgageList(props: Props) {
 
             // Provide an option to show suspect alt text (notably, single word alt text)
 
+            // Ensure we have a place to store info about he epub
+            const extrasExists = await exists(extrasFolder);
+            if (!extrasExists) {
+                await createDir(extrasFolder, { recursive: true });
+            }
 
             const saveExists = await exists(savedImageList);
             const mathExists = await exists(savedMathList);
@@ -302,7 +321,7 @@ export default function ImgageList(props: Props) {
             let fullMathList = [];
 
             // TODO remove existimg cache files if we re-load the same epub in case it has changed
-            if (0 && saveExists && metadataExists && mathExists) {
+            if (1 && saveExists && metadataExists && mathExists) {
                 metadataIn = JSON.parse(await readTextFile(savedMetadata));
                 setMetadata(metadataIn.metadata);
                 setSpine(metadataIn.spine);
@@ -314,24 +333,39 @@ export default function ImgageList(props: Props) {
             } else {
 
                 let res: any = await invoke<string>('get_epub_data', { fullpath: fullpath });
+
+                const original = path.join(extrasFolder, base);
+                const originalExists = await exists(original);
+                if (!originalExists) {
+                    await copyFile(fullpath, original);
+                }
+
+                // Create a copy of the original epub under the extras folder (if it doesn't exist). Ensure it doesn't get added to any saved epubs
+                // At this point the epub is expanded. As we read each file, if we need to add an id, do so, and re-save the html
+                // If any ids have been added, we should re-save the epub with the new ids
+
                 const [metadata, spine, resources] = res;  // Probably a better way of doing this when I understand rust types more
                 setMetadata(metadata);
                 setSpine(spine);
                 setResources(resources);
+
+                let epubChanged = false;
+                // let idIndex = 1;  // Used to add unique ids to images
 
                 let imgs: { [key: string]: boolean } = {};
 
                 let index = 0;
                 let mathIndex = 0;
 
-                let spineIndex = 0;
+                // let spineIndex = 0;
                 for (const page of spine) {
                     const fileName = path.join(epubPath, resources[page][0]);
                     const file = await readTextFile(fileName);
                     // const doc = new DOMParser().parseFromString(file, 'text/xml')
                     const doc = IDOMParser.parse(file, 'text/xml');
-
-                    spineIndex += 2;
+                    const baseId = "file" + page;
+                    let changed = false;
+                    // spineIndex += 2;
 
                     // Extract image details
                     const images = doc.documentElement.getElementsByTagName('img');
@@ -348,10 +382,25 @@ export default function ImgageList(props: Props) {
                             // const src = images[img].getAttribute('src');
                             // entry.src = images[img].getAttribute('src');
                             entry.cfi = path.basename(resources[page][0]);
-                            entry.html = fileName;
+                            // entry.html = fileName;
 
+                            // Need to update epub to add id's when missing
                             if (el.getAttribute("id")) entry.cfi = entry.cfi + "#" + el.getAttribute("id");// "/" + CFI.generate(images[img]); // fileName; // Allow us to locate the image in context (IFRAME)
-                            // else entry.cfi = entry.cfi + "#" + closeId;
+                            else { // add an id, and set changed=true;
+                                const id = "epubai_" + baseId + "_" + img;
+                                entry.cfi = entry.cfi + "#" + id;
+                                el.setAttribute("id", id);
+                                // idIndex++;
+                                changed = true;
+                            }
+
+                            // else {
+                            //     const closeDiv = el.closest("[id]");
+                            //     if (closeDiv && closeDiv.getAttribute("id")) {
+                            //         entry.cfi = entry.cfi + "#" + closeDiv.getAttribute("id");
+                            //         alert("Closest div: " + entry.cfi);
+                            //     }
+                            // }
                             // else entry.cfi = "";
 
                             // entry.cfi = "Spine " + spineIndex + "/" + CFI.generate(images[img]);
@@ -434,7 +483,10 @@ export default function ImgageList(props: Props) {
 
                     }
 
-
+                    if (changed) {
+                        await writeTextFile(fileName, doc.toString());
+                        epubChanged = true;
+                    }
                 }
 
                 setOriginalEpub(epubName);
@@ -444,6 +496,15 @@ export default function ImgageList(props: Props) {
                     "metadata": metadata,
                     "spine": spine,
                     "resources": resources
+                }
+
+                if (epubChanged) {
+                    // alert("Epub has changed, saving..." + epubPath + " to " + fullpath);
+                    try {
+                        let res = await invoke<string>('create_epub', { name: epubPath, output: fullpath });
+                        // briefMessage("Epub saved");
+                        // alert(res);
+                    } catch (err) { alert(err) }
                 }
 
                 await writeTextFile(savedImageList, JSON.stringify(fullImageList, null, 2));
@@ -547,8 +608,8 @@ export default function ImgageList(props: Props) {
 
         // setLocation(imageList[index].cfi);
         if (imageList[index].cfi) {
-            // setLocation("epubcfi(/6/4!/4/4/86/1:0)");
-            // setLocation('epubcfi(/6/4!/4/80/2[id-5004529412748893830])');
+            // setLocation("epubcfi(/6/4!/4/46/2[id-5145052549037660536]/1:0)");
+            // setLocation("epubcfi(/6/4!/4/46/1)");
             // alert("CFI: " + imageList[index].cfi);
             setLocation(imageList[index].cfi);
         }
@@ -894,6 +955,10 @@ export default function ImgageList(props: Props) {
                                 // url="/mobydick.epub"
                                 // url="/pg14838-images.epub"
                                 location={location}
+                                epubOptions={{
+                                    allowPopups: true, // Adds `allow-popups` to sandbox-attribute
+                                    allowScriptedContent: true, // Adds `allow-scripts` to sandbox-attribute
+                                }}
                                 locationChanged={(epubcfi: string) => epublocation(epubcfi)}
                                 getRendition={(rendition) => {
                                     const spine_get = rendition.book.spine.get.bind(rendition.book.spine);
@@ -901,7 +966,7 @@ export default function ImgageList(props: Props) {
                                         // console.log("target = " + target);
 
                                         let t = spine_get(target);
-
+                                        // console.group(t);
                                         if (t == null) {
                                             const s = rendition.book.spine as any;
                                             // console.log(s);
